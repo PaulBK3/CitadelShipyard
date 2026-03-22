@@ -9,11 +9,9 @@ def setup():
     CREATE TABLE IF NOT EXISTS ship_requests (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER NOT NULL,
-        player_name TEXT NOT NULL,
-        region TEXT NOT NULL,
+        house TEXT NOT NULL,
         ship_type TEXT NOT NULL,
         amount INTEGER NOT NULL,
-        rp_link TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending',
         staff_name TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -23,11 +21,11 @@ def setup():
     conn.commit()
 
 
-def create_ship_request(user_id, player_name, region, ship_type, amount, rp_link):
+def create_ship_request(user_id, house, ship_type, amount):
     cursor.execute("""
-    INSERT INTO ship_requests(user_id, player_name, region, ship_type, amount, rp_link)
-    VALUES(?, ?, ?, ?, ?, ?)
-    """, (user_id, player_name, region, ship_type, amount, rp_link))
+    INSERT INTO ship_requests(user_id, house, ship_type, amount)
+    VALUES(?, ?, ?, ?)
+    """, (user_id, house, ship_type, amount))
 
     conn.commit()
     return cursor.lastrowid
@@ -35,7 +33,7 @@ def create_ship_request(user_id, player_name, region, ship_type, amount, rp_link
 
 def get_ship_request(request_id):
     cursor.execute("""
-    SELECT id, user_id, player_name, region, ship_type, amount, rp_link, status, staff_name
+    SELECT id, user_id, house, ship_type, amount, status, staff_name
     FROM ship_requests
     WHERE id=?
     """, (request_id,))
@@ -48,13 +46,11 @@ def get_ship_request(request_id):
     return {
         "id": row[0],
         "user_id": row[1],
-        "player_name": row[2],
-        "region": row[3],
-        "ship_type": row[4],
-        "amount": row[5],
-        "rp_link": row[6],
-        "status": row[7],
-        "staff_name": row[8],
+        "house": row[2],
+        "ship_type": row[3],
+        "amount": row[4],
+        "status": row[5],
+        "staff_name": row[6],
     }
 
 

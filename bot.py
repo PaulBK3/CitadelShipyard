@@ -31,17 +31,10 @@ def has_role(member, role):
     return any(r.name == role for r in member.roles)
 
 
-def get_region(member):
+def get_house(member):
 
-    regions = [r.name for r in member.roles if r.name in config.REGION_ROLES]
-
-    if len(regions) == 1:
-        return regions[0]
-    #handle dragonstaone/crownlands dual role
-    if len(regions)== 2:
-        if "Dragonstone" in regions:
-            return regions[0] if regions[1] == "Crownlands" else regions[1]
-    return None
+    houses = [r.name for r in member.roles if r.name.startswith("House ")]
+    return houses[0] if houses else None
 
 
 async def log_channel(guild):
@@ -69,7 +62,7 @@ async def setup_hook():
 
     bot.tree.copy_global_to(guild=guild)
     synced = await bot.tree.sync(guild=guild)
-
+    bot.add_view(ShipRequestView())  # re-register persistent buttons
     print(f"Synced {len(synced)} commands to dev guild.")
     
 @bot.event
@@ -88,46 +81,79 @@ class ShipRequestView(discord.ui.View):
 
     @discord.ui.button(label="Approve", style=discord.ButtonStyle.green, custom_id="ship_request_approve")
     async def approve(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not has_role(interaction.user, config.SHIP_STAFF_ROLE):
+        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
         embed = interaction.message.embeds[0]
-        fields = {field.name: field.value for field in embed.fields}
+        footer = embed.footer.text
 
-        player = fields["Player"]
-        region = fields["Region"]
-        ship = fields["Ship"]
-        amount = int(fields["Amount"])
+        if not footer.startswith("Request ID: "):
+            await interaction.response.send_message("Invalid request.", ephemeral=True)
+            return
+
+        request_id = int(footer.replace("Request ID: ", ""))
+        request = database.get_ship_request(request_id)
+
+        if not request:
+            await interaction.response.send_message("Request not found.", ephemeral=True)
+            return
+
+        if request["status"] != "pending":
+            await interaction.response.send_message("This request was already handled.", ephemeral=True)
+            return
+
+        database.update_ship_request_status(request_id, "approved", interaction.user.name)
 
         new_embed = discord.Embed(
             title="Ship Request Approved",
-            description=f"{amount}x {ship} approved for {region}.",
+            description=f"{request['amount']}x {config.SHIPS[request['ship_type']]['name']} approved."
         )
-        new_embed.add_field(name="Player", value=player, inline=True)
+        new_embed.add_field(name="Player", value=f"<@{request['user_id']}>", inline=True)
+        new_embed.add_field(name="House", value=request["house"], inline=True)
         new_embed.add_field(name="Approved By", value=interaction.user.mention, inline=True)
+        new_embed.set_footer(text=f"Request ID: {request_id}")
 
         await interaction.response.edit_message(embed=new_embed, view=None)
 
-    @discord.ui.button(label="Deny", style=discord.ButtonStyle.red, custom_id="ship_request_deny")
+    @discord.ui.button(
+        label="Deny",
+        style=discord.ButtonStyle.red,
+        custom_id="ship_request_deny"
+    )
     async def deny(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not has_role(interaction.user, config.SHIP_STAFF_ROLE):
+        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
         embed = interaction.message.embeds[0]
-        fields = {field.name: field.value for field in embed.fields}
+        footer = embed.footer.text
 
-        player = fields["Player"]
-        ship = fields["Ship"]
-        amount = fields["Amount"]
+        if not footer.startswith("Request ID: "):
+            await interaction.response.send_message("Invalid request.", ephemeral=True)
+            return
+
+        request_id = int(footer.replace("Request ID: ", ""))
+        request = database.get_ship_request(request_id)
+
+        if not request:
+            await interaction.response.send_message("Request not found.", ephemeral=True)
+            return
+
+        if request["status"] != "pending":
+            await interaction.response.send_message("This request was already handled.", ephemeral=True)
+            return
+
+        database.update_ship_request_status(request_id, "denied", interaction.user.name)
 
         new_embed = discord.Embed(
             title="Ship Request Denied",
-            description=f"{amount}x {ship} denied.",
+            description=f"{request['amount']}x {config.SHIPS[request['ship_type']]['name']} denied."
         )
-        new_embed.add_field(name="Player", value=player, inline=True)
+        new_embed.add_field(name="Player", value=f"<@{request['user_id']}>", inline=True)
+        new_embed.add_field(name="House", value=request["house"], inline=True)
         new_embed.add_field(name="Denied By", value=interaction.user.mention, inline=True)
+        new_embed.set_footer(text=f"Request ID: {request_id}")
 
         await interaction.response.edit_message(embed=new_embed, view=None)
 
@@ -138,7 +164,7 @@ class ShipRequestView(discord.ui.View):
 @bot.tree.command(name="buy_ship", description="Request ship construction")
 @app_commands.choices(ship_type=SHIP_CHOICES)
 @app_commands.describe(
-    ship_type="Type of ship",
+    ship_type="Ship type",
     amount="How many ships to build"
 )
 async def buy_ship(
@@ -150,31 +176,44 @@ async def buy_ship(
         await interaction.response.send_message("Amount must be greater than 0.", ephemeral=True)
         return
 
-    region = get_region(interaction.user)
-    if not region:
-        await interaction.response.send_message("No valid region role found.", ephemeral=True)
+    house = get_house(interaction.user)
+    if not house:
+        await interaction.response.send_message("No valid house role found.", ephemeral=True)
         return
 
-    ship_data = config.SHIPS[ship_type]
-    ship_name = ship_data["name"]
+    log = await log_channel(interaction.guild)
+    if not log:
+        await interaction.response.send_message("Ship request channel not found.", ephemeral=True)
+        return
+
+    request_id = database.create_ship_request(
+        interaction.user.id,
+        house,
+        ship_type,
+        amount
+    )
+
+    ship_name = config.SHIPS[ship_type]["name"]
 
     embed = discord.Embed(
         title="New Ship Construction Request",
-        description="Waiting for staff approval.",
+        description="Waiting for staff approval."
     )
     embed.add_field(name="Player", value=interaction.user.mention, inline=True)
-    embed.add_field(name="Region", value=region, inline=True)
+    embed.add_field(name="House", value=house, inline=True)
     embed.add_field(name="Ship", value=ship_name, inline=True)
     embed.add_field(name="Amount", value=str(amount), inline=True)
 
     cost_lines = []
-    for resource, cost in ship_data["cost"].items():
-        cost_lines.append(f"{resource}: {cost * amount}")
+    for key, data in config.SHIPS.items():
+        if key == ship_type:
+            total_cost = data["cost"] * amount
+            cost_lines.append(f"{data['name']}: {data['cost']} Gold each, {total_cost} Gold total")
     embed.add_field(name="Total Cost", value="\n".join(cost_lines), inline=False)
 
-    log = await log_channel(interaction.guild)
-    if log:
-        await log.send(embed=embed, view=ShipRequestView())
+    embed.set_footer(text=f"Request ID: {request_id}")
+
+    await log.send(embed=embed, view=ShipRequestView())
 
     await interaction.response.send_message(
         f"Ship request submitted for {amount}x {ship_name}.",
