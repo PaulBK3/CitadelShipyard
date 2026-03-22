@@ -10,31 +10,31 @@ SHIPS = {
         "cost": 25
     },
     "war longship": {
-        "name": "Longship",
+        "name": "War Longship",
         "cost": 25
     },
     "Galley": {
-        "name": "Longship",
+        "name": "Galley",
         "cost": 100
     },
     "Myrish Galley": {
-        "name": "Longship",
+        "name": "Myrish Galley",
         "cost": 75
     },
     "War Galley": {
-        "name": "Longship",
+        "name": "War Galley",
         "cost": 175
     },
     "Myrish War Galley": {
-        "name": "Longship",
+        "name": "Myrish War Galley",
         "cost": 125
     },
     "Dromond": {
-        "name": "War Galley",
+        "name": "Dromond",
         "cost": 500
     },
     "Supply Ship": {
-        "name": "Cog",
+        "name": "Supply Ship",
         "cost": 25
     },
 }
