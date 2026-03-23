@@ -203,9 +203,13 @@ class ShipRequestView(discord.ui.View):
 
         save_edit = await save_edit_channel(interaction.guild)
         if save_edit:
+            if request["comment"]:
+                comment_text = f"\nComment: {request['comment']}"
+            else:
+                comment_text = ""
             await save_edit.send(
                 f"{request['house']}: -{total_cost} gold "
-                f"(approved ship request #{request_id}, {request['amount']}x {ship_data['name']})"
+                f"(approved ship request #{request_id}, {request['amount']}x {ship_data['name']}){comment_text}"
             )
 
     @discord.ui.button(
@@ -255,8 +259,8 @@ async def buy_ship(
     amount: int,
     comment: str | None = None
 ):
-    if not has_role(interaction.user, config.SHIP_CHARTA_ROLE):
-        await interaction.response.send_message("Ship Charta required.", ephemeral=True)
+    if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        await interaction.response.send_message("Ship Team required.", ephemeral=True)
         return
 
     if amount <= 0:
