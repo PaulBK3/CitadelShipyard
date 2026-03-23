@@ -208,7 +208,7 @@ class ShipRequestView(discord.ui.View):
             else:
                 comment_text = ""
             await save_edit.send(
-                f"{request['house']}:\n - Remove {total_cost} gold "
+                f"{request['house']}:\n- Remove {total_cost} gold"
                 f"(approved ship request #{request_id}, {request['amount']}x {ship_data['name']}){comment_text}"
             )
 
