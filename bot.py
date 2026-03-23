@@ -208,7 +208,7 @@ class ShipRequestView(discord.ui.View):
             else:
                 comment_text = ""
             await save_edit.send(
-                f"{request['house']}:\n- Remove {total_cost} gold"
+                f"{request['house']}:\n- Remove {total_cost} gold "
                 f"(approved ship request #{request_id}, {request['amount']}x {ship_data['name']}){comment_text}"
             )
 
@@ -259,10 +259,6 @@ async def buy_ship(
     amount: int,
     comment: str | None = None
 ):
-    if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
-        await interaction.response.send_message("Ship Team required.", ephemeral=True)
-        return
-
     if amount <= 0:
         await interaction.response.send_message("Amount must be greater than 0.", ephemeral=True)
         return
