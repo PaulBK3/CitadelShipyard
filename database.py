@@ -14,9 +14,17 @@ def setup():
         amount INTEGER NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending',
         staff_name TEXT,
+        deny_reason TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+    # migration for older dbs
+    cursor.execute("PRAGMA table_info(ship_requests)")
+    columns = [row[1] for row in cursor.fetchall()]
+
+    if "deny_reason" not in columns:
+        cursor.execute("ALTER TABLE ship_requests ADD COLUMN deny_reason TEXT")
 
     conn.commit()
 
@@ -33,7 +41,7 @@ def create_ship_request(user_id, house, ship_type, amount):
 
 def get_ship_request(request_id):
     cursor.execute("""
-    SELECT id, user_id, house, ship_type, amount, status, staff_name
+    SELECT id, user_id, house, ship_type, amount, status, staff_name, deny_reason
     FROM ship_requests
     WHERE id=?
     """, (request_id,))
@@ -51,14 +59,15 @@ def get_ship_request(request_id):
         "amount": row[4],
         "status": row[5],
         "staff_name": row[6],
+        "deny_reason": row[7],
     }
 
 
-def update_ship_request_status(request_id, status, staff_name):
+def update_ship_request_status(request_id, status, staff_name, deny_reason=None):
     cursor.execute("""
     UPDATE ship_requests
-    SET status=?, staff_name=?
+    SET status=?, staff_name=?, deny_reason=?
     WHERE id=?
-    """, (status, staff_name, request_id))
+    """, (status, staff_name, deny_reason, request_id))
 
     conn.commit()

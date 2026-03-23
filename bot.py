@@ -42,7 +42,19 @@ async def log_channel(guild):
     for channel in guild.text_channels:
         if channel.name == config.SHIP_LOG_CHANNEL:
             return channel
-        
+
+async def save_edit_channel(guild):
+    for channel in guild.text_channels:
+        if channel.name == config.SAVE_EDIT_CHANNEL:
+            return channel
+              
+async def notify_user(user_id: int, message: str):
+    user = await bot.fetch_user(user_id)
+    try:
+        await user.send(message)
+    except discord.Forbidden:
+        pass
+
 # -------------------
 # Ready
 # -------------------
@@ -74,6 +86,57 @@ async def on_ready():
 #-------------------
 # Ship Requests View
 #-------------------
+class DenyReasonModal(discord.ui.Modal, title="Deny Ship Request"):
+    reason = discord.ui.TextInput(
+        label="Reason",
+        style=discord.TextStyle.paragraph,
+        required=True,
+        max_length=500
+    )
+
+    def __init__(self, request_id: int):
+        super().__init__()
+        self.request_id = request_id
+
+    async def on_submit(self, interaction: discord.Interaction):
+        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+            await interaction.response.send_message("Ship Staff only.", ephemeral=True)
+            return
+
+        request = database.get_ship_request(self.request_id)
+
+        if not request:
+            await interaction.response.send_message("Request not found.", ephemeral=True)
+            return
+
+        if request["status"] != "pending":
+            await interaction.response.send_message("This request was already handled.", ephemeral=True)
+            return
+
+        database.update_ship_request_status(
+            self.request_id,
+            "denied",
+            interaction.user.name,
+            str(self.reason)
+        )
+
+        new_embed = discord.Embed(
+            title="Ship Request Denied",
+            description=f"{request['amount']}x {config.SHIPS[request['ship_type']]['name']} denied."
+        )
+        new_embed.add_field(name="Player", value=f"<@{request['user_id']}>", inline=True)
+        new_embed.add_field(name="House", value=request["house"], inline=True)
+        new_embed.add_field(name="Denied By", value=interaction.user.mention, inline=True)
+        new_embed.add_field(name="Reason", value=str(self.reason), inline=False)
+        new_embed.set_footer(text=f"Request ID: {self.request_id}")
+
+        await interaction.response.edit_message(embed=new_embed, view=None)
+
+        await notify_user(
+            request["user_id"],
+            f"Your ship request for {request['amount']}x {config.SHIPS[request['ship_type']]['name']} "
+            f"for {request['house']} was denied by {interaction.user.display_name}.\nReason: {self.reason}"
+        )
 
 class ShipRequestView(discord.ui.View):
     def __init__(self):
@@ -105,21 +168,38 @@ class ShipRequestView(discord.ui.View):
 
         database.update_ship_request_status(request_id, "approved", interaction.user.name)
 
+        ship_data = config.SHIPS[request["ship_type"]]
+        total_cost = ship_data["cost"] * request["amount"]
+
         new_embed = discord.Embed(
             title="Ship Request Approved",
-            description=f"{request['amount']}x {config.SHIPS[request['ship_type']]['name']} approved."
+            description=f"{request['amount']}x {ship_data['name']} approved."
         )
         new_embed.add_field(name="Player", value=f"<@{request['user_id']}>", inline=True)
         new_embed.add_field(name="House", value=request["house"], inline=True)
         new_embed.add_field(name="Approved By", value=interaction.user.mention, inline=True)
+        new_embed.add_field(name="Gold Cost", value=str(total_cost), inline=True)
         new_embed.set_footer(text=f"Request ID: {request_id}")
 
         await interaction.response.edit_message(embed=new_embed, view=None)
 
+        await notify_user(
+            request["user_id"],
+            f"Your ship request for {request['amount']}x {ship_data['name']} "
+            f"for {request['house']} was approved by {interaction.user.display_name}."
+        )
+
+        save_edit = await save_edit_channel(interaction.guild)
+        if save_edit:
+            await save_edit.send(
+                f"{request['house']}: -{total_cost} gold "
+                f"(approved ship request #{request_id}, {request['amount']}x {ship_data['name']})"
+            )
+
     @discord.ui.button(
-        label="Deny",
-        style=discord.ButtonStyle.red,
-        custom_id="ship_request_deny"
+    label="Deny",
+    style=discord.ButtonStyle.red,
+    custom_id="ship_request_deny"
     )
     async def deny(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
@@ -134,8 +214,8 @@ class ShipRequestView(discord.ui.View):
             return
 
         request_id = int(footer.replace("Request ID: ", ""))
-        request = database.get_ship_request(request_id)
 
+        request = database.get_ship_request(request_id)
         if not request:
             await interaction.response.send_message("Request not found.", ephemeral=True)
             return
@@ -144,18 +224,7 @@ class ShipRequestView(discord.ui.View):
             await interaction.response.send_message("This request was already handled.", ephemeral=True)
             return
 
-        database.update_ship_request_status(request_id, "denied", interaction.user.name)
-
-        new_embed = discord.Embed(
-            title="Ship Request Denied",
-            description=f"{request['amount']}x {config.SHIPS[request['ship_type']]['name']} denied."
-        )
-        new_embed.add_field(name="Player", value=f"<@{request['user_id']}>", inline=True)
-        new_embed.add_field(name="House", value=request["house"], inline=True)
-        new_embed.add_field(name="Denied By", value=interaction.user.mention, inline=True)
-        new_embed.set_footer(text=f"Request ID: {request_id}")
-
-        await interaction.response.edit_message(embed=new_embed, view=None)
+        await interaction.response.send_modal(DenyReasonModal(request_id))
 
 #-------------------
 # buy ship command
