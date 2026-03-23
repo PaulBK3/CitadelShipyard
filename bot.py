@@ -129,14 +129,21 @@ class DenyReasonModal(discord.ui.Modal, title="Deny Ship Request"):
         new_embed.add_field(name="Denied By", value=interaction.user.mention, inline=True)
         new_embed.add_field(name="Reason", value=str(self.reason), inline=False)
         new_embed.set_footer(text=f"Request ID: {self.request_id}")
+        if request["comment"]:
+            new_embed.add_field(name="Comment", value=request["comment"], inline=False)
 
         await interaction.response.edit_message(embed=new_embed, view=None)
 
-        await notify_user(
-            request["user_id"],
+        dm_msg = (
             f"Your ship request for {request['amount']}x {config.SHIPS[request['ship_type']]['name']} "
-            f"for {request['house']} was denied by {interaction.user.display_name}.\nReason: {self.reason}"
-        )
+            f"for {request['house']} was denied by {interaction.user.display_name}.\n"
+            f"Reason: {self.reason}"
+            )
+
+        if request["comment"]:
+            dm_msg += f"\nYour comment: {request['comment']}"
+
+        await notify_user(request["user_id"], dm_msg)
 
 class ShipRequestView(discord.ui.View):
     def __init__(self):
@@ -180,14 +187,19 @@ class ShipRequestView(discord.ui.View):
         new_embed.add_field(name="Approved By", value=interaction.user.mention, inline=True)
         new_embed.add_field(name="Gold Cost", value=str(total_cost), inline=True)
         new_embed.set_footer(text=f"Request ID: {request_id}")
-
+        if request["comment"]:
+            new_embed.add_field(name="Comment", value=request["comment"], inline=False)
         await interaction.response.edit_message(embed=new_embed, view=None)
 
-        await notify_user(
-            request["user_id"],
-            f"Your ship request for {request['amount']}x {ship_data['name']} "
+        dm_msg = (
+            f"Your ship request for {request['amount']}x {config.SHIPS[request['ship_type']]['name']} "
             f"for {request['house']} was approved by {interaction.user.display_name}."
         )
+
+        if request["comment"]:
+            dm_msg += f"\nYour comment: {request['comment']}"
+
+        await notify_user(request["user_id"], dm_msg)
 
         save_edit = await save_edit_channel(interaction.guild)
         if save_edit:
@@ -234,13 +246,19 @@ class ShipRequestView(discord.ui.View):
 @app_commands.choices(ship_type=SHIP_CHOICES)
 @app_commands.describe(
     ship_type="Ship type",
-    amount="How many ships to build"
+    amount="How many ships to build",
+    comment="Optional note for staff"
 )
 async def buy_ship(
     interaction: discord.Interaction,
     ship_type: str,
-    amount: int
+    amount: int,
+    comment: str | None = None
 ):
+    if not has_role(interaction.user, config.SHIP_CHARTA_ROLE):
+        await interaction.response.send_message("Ship Charta required.", ephemeral=True)
+        return
+
     if amount <= 0:
         await interaction.response.send_message("Amount must be greater than 0.", ephemeral=True)
         return
@@ -259,10 +277,12 @@ async def buy_ship(
         interaction.user.id,
         house,
         ship_type,
-        amount
+        amount,
+        comment
     )
 
     ship_name = config.SHIPS[ship_type]["name"]
+    gold_cost = config.SHIPS[ship_type]["cost"] * amount
 
     embed = discord.Embed(
         title="New Ship Construction Request",
@@ -272,13 +292,10 @@ async def buy_ship(
     embed.add_field(name="House", value=house, inline=True)
     embed.add_field(name="Ship", value=ship_name, inline=True)
     embed.add_field(name="Amount", value=str(amount), inline=True)
+    embed.add_field(name="Gold Cost", value=str(gold_cost), inline=True)
 
-    cost_lines = []
-    for key, data in config.SHIPS.items():
-        if key == ship_type:
-            total_cost = data["cost"] * amount
-            cost_lines.append(f"{data['name']}: {data['cost']} Gold each, {total_cost} Gold total")
-    embed.add_field(name="Total Cost", value="\n".join(cost_lines), inline=False)
+    if comment:
+        embed.add_field(name="Comment", value=comment, inline=False)
 
     embed.set_footer(text=f"Request ID: {request_id}")
 
