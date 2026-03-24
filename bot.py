@@ -33,7 +33,7 @@ def has_role(member, role):
 
 def get_house(member):
 
-    houses = [r.name for r in member.roles if r.name.startswith("House ")]
+    houses = [r.name for r in member.roles if r.name.startswith("House ") or r.name.startswith("Free City")]
     return houses[0] if houses else None
 
 
