@@ -208,8 +208,11 @@ class ShipRequestView(discord.ui.View):
             else:
                 comment_text = ""
             if request["house"].startswith("Free City"):
+                member = interaction.guild.get_member(request["user_id"])
+                player_name = member.display_name if member else f"<@{request['user_id']}>"
+
                 await save_edit.send(
-                f"{request['user_id']}:\n- Remove {total_cost} gold "
+                f"{player_name}:\n- Remove {total_cost} gold"
                 f"(approved ship request #{request_id}, {request['amount']}x {ship_data['name']}){comment_text}"
             ) 
             else:
