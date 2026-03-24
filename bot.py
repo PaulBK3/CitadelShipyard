@@ -207,10 +207,16 @@ class ShipRequestView(discord.ui.View):
                 comment_text = f"\nComment: {request['comment']}"
             else:
                 comment_text = ""
-            await save_edit.send(
-                f"{request['house']}:\n- Remove {total_cost} gold "
+            if request["house"].startswith("Free City"):
+                await save_edit.send(
+                f"{request['user_id']}:\n- Remove {total_cost} gold "
                 f"(approved ship request #{request_id}, {request['amount']}x {ship_data['name']}){comment_text}"
-            )
+            ) 
+            else:
+                await save_edit.send(
+                    f"{request['house']}:\n- Remove {total_cost} gold "
+                    f"(approved ship request #{request_id}, {request['amount']}x {ship_data['name']}){comment_text}"
+                )
 
     @discord.ui.button(
     label="Deny",
