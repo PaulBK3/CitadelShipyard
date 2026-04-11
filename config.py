@@ -12,7 +12,7 @@ HOUSE_ROLE_FILTER = [
 ]
 
 SHIPS = {
-    "longship": {
+    "Longship": {
         "name": "Longship",
         "cost": 25,
         "maintenance": 5,
@@ -20,7 +20,7 @@ SHIPS = {
         "health": 1,
         "damage": 3
     },
-    "war longship": {
+    "War_Longship": {
         "name": "War Longship",
         "cost": 25,
         "maintenance": 5,
@@ -36,7 +36,7 @@ SHIPS = {
         "health": 3,
         "damage": 5
     },
-    "Myrish Galley": {
+    "Myrish_Galley": {
         "name": "Myrish Galley",
         "cost": 75,
         "maintenance": 7,
@@ -44,7 +44,7 @@ SHIPS = {
         "health": 2,
         "damage": 5
     },
-    "War Galley": {
+    "War_Galley": {
         "name": "War Galley",
         "cost": 175,
         "maintenance": 15,
@@ -52,7 +52,7 @@ SHIPS = {
         "health": 5,
         "damage": 7
     },
-    "Myrish War Galley": {
+    "Myrish_War_Galley": {
         "name": "Myrish War Galley",
         "cost": 125,
         "maintenance": 12,
@@ -68,7 +68,7 @@ SHIPS = {
         "health": 10,
         "damage": 15
     },
-    "Supply Ship": {
+    "Supply_Ship": {
         "name": "Supply Ship",
         "cost": 25,
         "maintenance": 0,
@@ -95,12 +95,12 @@ SEA_CULTURES = {
     # WESTEROS
     # =========================
     "Ironborn": {
-        "allowed_ships": ["longship", "war_longship", "war_galley"],
-        "blocked_ships": [],
+        "allowed_ships": ["Longship", "War_Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
+        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley"],
         "cost_modifiers": [],
         "maintenance_modifiers": [
             {
-                "ship_types": ["war_galley", "dromond", "great_dromond"],
+                "ship_types": ["War_Galley", "Dromond", "Galley"],
                 "multiplier": 2.0,
                 "reason": "Ironborn pay double maintenance for ships larger than Longships."
             }
@@ -116,8 +116,8 @@ SEA_CULTURES = {
     },
 
     "Shieldman": {
-        "allowed_ships": ["longship", "war_longship", "war_galley"],
-        "blocked_ships": [],
+        "allowed_ships": ["Longship", "War_Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
+        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley"],
         "cost_modifiers": [],
         "maintenance_modifiers": [],
         "fleet_rules": {
@@ -137,8 +137,8 @@ SEA_CULTURES = {
     },
 
     "Vineman": {
-        "allowed_ships": ["cog", "war_galley", "dromond", "great_dromond"],
-        "blocked_ships": [],
+        "allowed_ships": ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
+        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley", "War_Longship"],
         "cost_modifiers": [],
         "maintenance_modifiers": [],
         "fleet_rules": {
@@ -156,9 +156,9 @@ SEA_CULTURES = {
         ]
     },
 
-    "Stone Dornish": {
-        "allowed_ships": ["cog", "war_galley", "galley"],
-        "blocked_ships": ["dromond", "great_dromond"],
+    "Dornish": {
+        "allowed_ships": ["Longship", "Galley", "Myrish_Galley", "Supply_Ship"],
+        "blocked_ships": ["Dromond", "Great_Dromond", "War_Galley", "Myrish_War_Galley"],
         "cost_modifiers": [
             {
                 "ship_types": "ALL",
@@ -176,34 +176,13 @@ SEA_CULTURES = {
         ]
     },
 
-    "Sand Dornish": {
-        "allowed_ships": ["cog", "war_galley", "galley", "essosi_galley", "dromond"],
-        "blocked_ships": [],
-        "cost_modifiers": [
-            {
-                "ship_types": "ALL",
-                "multiplier": 2.0,
-                "reason": "Most Sand/Salt Dornish pay double construction cost."
-            }
-        ],
-        "maintenance_modifiers": [],
-        "fleet_rules": {
-            "base": 20,
-            "stat": "martial"
-        },
-        "special_rules": [
-            "Dornish houses may build Essosi ship types.",
-            "Certain major houses may be exempt by staff ruling."
-        ]
-    },
-
     "Westerosi Valyrian": {
-        "allowed_ships": ["cog", "war_galley", "dromond", "great_dromond", "essosi_galley"],
-        "blocked_ships": [],
+        "allowed_ships": ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
+        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley", "War_Longship"],
         "cost_modifiers": [],
         "maintenance_modifiers": [
             {
-                "ship_types": ["galley", "war_galley"],
+                "ship_types": ["Galley", "War_Galley"],
                 "multiplier": 0.5,
                 "condition": "spicetown_rebuilt",
                 "reason": "Galleys cost half maintenance if Spicetown is rebuilt."
@@ -223,12 +202,12 @@ SEA_CULTURES = {
     },
 
     "Harborman": {
-        "allowed_ships": ["cog", "galley", "war_galley", "dromond"],
-        "blocked_ships": [],
+        "allowed_ships": ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
+        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley", "War_Longship"],
         "cost_modifiers": [],
         "maintenance_modifiers": [
             {
-                "ship_types": ["dromond", "great_dromond"],
+                "ship_types": ["Dromond", "War_Galley"],
                 "multiplier": 1.10,
                 "reason": "Ships larger than Galleys cost 10% more to maintain."
             }
@@ -247,8 +226,8 @@ SEA_CULTURES = {
     },
 
     "Bearmen": {
-        "allowed_ships": ["cog", "longship", "war_longship"],
-        "blocked_ships": ["war_galley", "dromond", "great_dromond"],
+        "allowed_ships": ["Longship", "War_Longship", "Supply_Ship"],
+        "blocked_ships": ["War_Galley", "Dromond", "Myrish_Galley", "Myrish_War_Galley", "Galley"],
         "cost_modifiers": [],
         "maintenance_modifiers": [],
         "fleet_rules": {
@@ -271,12 +250,12 @@ SEA_CULTURES = {
     },
 
     "Sapphire Islander": {
-        "allowed_ships": ["cog", "galley", "war_galley", "dromond"],
-        "blocked_ships": [],
+        "allowed_ships": ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
+        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley", "War_Longship"],
         "cost_modifiers": [],
         "maintenance_modifiers": [
             {
-                "ship_types": ["war_galley", "dromond", "great_dromond"],
+                "ship_types": ["ALL"],
                 "multiplier": 1.10,
                 "reason": "Stormlands warship maintenance costs 10% more."
             }
@@ -304,8 +283,8 @@ SEA_CULTURES = {
         "maintenance_modifiers": [
             {
                 "ship_types": "ALL",
-                "gold_ratio": 0.25,
-                "prestige_ratio": 0.75,
+                "multiplier": 0.25,
+                "prestige_multiplier": 0.75,
                 "reason": "Pirates pay only 25% of ship maintenance in gold."
             }
         ],
@@ -320,8 +299,8 @@ SEA_CULTURES = {
     },
 
     "Magister": {
-        "allowed_ships": ["cog", "galley", "war_galley", "dromond", "great_dromond", "essosi_galley"],
-        "blocked_ships": [],
+        "allowed_ships": ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship", "Myrish_Galley", "Myrish_War_Galley"],
+        "blocked_ships": ["War_Longship"],
         "cost_modifiers": [],
         "maintenance_modifiers": [],
         "fleet_rules": {

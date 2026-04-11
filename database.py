@@ -183,11 +183,11 @@ def set_house_port_level(house_name, port_level):
 # FLEET LEDGER
 # =========================================================
 
-def add_fleet_entry(house, ship_type, amount, source_request_id=None, added_by=None):
+def add_fleet_entry(house, ship_type, amount):
     cursor.execute("""
-    INSERT INTO fleet_ledger(house, ship_type, amount, source_request_id, added_by)
-    VALUES(?, ?, ?, ?, ?)
-    """, (house, ship_type, amount, source_request_id, added_by))
+    INSERT INTO fleet_ledger(house, ship_type, amount)
+    VALUES(?, ?, ?)
+    """, (house, ship_type, amount))
     conn.commit()
     return cursor.lastrowid
 

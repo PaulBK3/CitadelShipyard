@@ -114,9 +114,7 @@ class ApprovedShipView(discord.ui.View):
         database.add_fleet_entry(
             request["house"],
             request["ship_type"],
-            request["amount"],
-            source_request_id=request_id,
-            added_by=interaction.user.name
+            request["amount"]
         )
         database.mark_ship_request_added_to_ledger(request_id)
 
