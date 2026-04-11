@@ -1,10 +1,7 @@
 import discord
 import config
 import database
-
-
-def has_role(user, role_name):
-    return any(role.name == role_name for role in user.roles)
+import utils
 
 
 async def notify_user(bot, user_id, message):
@@ -36,7 +33,7 @@ class DenyShipReasonModal(discord.ui.Modal, title="Deny Ship Request"):
         self.request_id = request_id
 
     async def on_submit(self, interaction: discord.Interaction):
-        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
@@ -88,7 +85,7 @@ class ApprovedShipView(discord.ui.View):
 
     @discord.ui.button(label="Add to Ledger", style=discord.ButtonStyle.blurple, custom_id="ship_add_to_ledger")
     async def add_to_ledger(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
@@ -143,7 +140,7 @@ class ShipRequestView(discord.ui.View):
 
     @discord.ui.button(label="Approve", style=discord.ButtonStyle.green, custom_id="ship_request_approve")
     async def approve(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
@@ -184,6 +181,7 @@ class ShipRequestView(discord.ui.View):
         new_embed.add_field(name="House", value=request["house"], inline=True)
         new_embed.add_field(name="Ship", value=request["ship_type"], inline=True)
         new_embed.add_field(name="Amount", value=str(request["amount"]), inline=True)
+        new_embed.add_field(name="Total Cost", value=str(total_cost), inline=True)
         new_embed.add_field(name="Approved By", value=interaction.user.mention, inline=True)
 
         if request["comment"]:
@@ -202,7 +200,7 @@ class ShipRequestView(discord.ui.View):
 
     @discord.ui.button(label="Deny", style=discord.ButtonStyle.red, custom_id="ship_request_deny")
     async def deny(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 

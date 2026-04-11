@@ -4,46 +4,77 @@ SHIP_TEAM_ROLE = "Travel Team"
 SAVE_EDIT_CHANNEL = "✍︱save-edit-list"
 SHIP_LOG_CHANNEL = "ship-log"
 
+# Used to detect a player's house role
+HOUSE_ROLE_FILTER = [
+    "House ",
+    "Free City of ",
+    "Kingdom of "
+]
+
 SHIPS = {
     "longship": {
         "name": "Longship",
         "cost": 25,
-        "maintenance": 5
+        "maintenance": 5,
+        "supply_cost": 192,
+        "health": 1,
+        "damage": 3
     },
     "war longship": {
         "name": "War Longship",
         "cost": 25,
-        "maintenance": 5
+        "maintenance": 5,
+        "supply_cost": 192,
+        "health": 2,
+        "damage": 4
     },
     "Galley": {
         "name": "Galley",
         "cost": 100,
-        "maintenance": 10
+        "maintenance": 10,
+        "supply_cost": 320,
+        "health": 3,
+        "damage": 5
     },
     "Myrish Galley": {
         "name": "Myrish Galley",
         "cost": 75,
-        "maintenance": 7
+        "maintenance": 7,
+        "supply_cost": 240,
+        "health": 2,
+        "damage": 5
     },
     "War Galley": {
         "name": "War Galley",
         "cost": 175,
-        "maintenance": 15
+        "maintenance": 15,
+        "supply_cost": 480,
+        "health": 5,
+        "damage": 7
     },
     "Myrish War Galley": {
         "name": "Myrish War Galley",
         "cost": 125,
-        "maintenance": 12
+        "maintenance": 12,
+        "supply_cost": 320,
+        "health": 4,
+        "damage": 6
     },
     "Dromond": {
         "name": "Dromond",
         "cost": 500,
-        "maintenance": 50
+        "maintenance": 50,
+        "supply_cost": 1920,
+        "health": 10,
+        "damage": 15
     },
     "Supply Ship": {
         "name": "Supply Ship",
         "cost": 25,
-        "maintenance": 0
+        "maintenance": 0,
+        "supply_cost": -1920,
+        "health": 0,
+        "damage": 0
     },
 }
 

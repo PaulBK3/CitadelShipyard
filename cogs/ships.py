@@ -3,20 +3,10 @@ from discord.ext import commands
 from discord import app_commands
 import config
 import database
+import utils
 from views.ship_views import ShipRequestView
 from views.port_views import PortRequestView
-
-
-def has_role(user, role_name):
-    return any(role.name == role_name for role in user.roles)
-
-
-def get_house(member: discord.Member):
-    for role in member.roles:
-        for prefix in config.HOUSE_ROLE_FILTER:
-            if role.name.startswith(prefix):
-                return role.name
-    return None
+from naval_rules import can_build_ship, get_modified_ship_cost
 
 
 async def ship_log_channel(guild):
@@ -31,21 +21,6 @@ async def port_log_channel(guild):
         if channel.name == config.PORT_LOG_CHANNEL:
             return channel
     return None
-
-
-def ship_allowed_for_house(house_name, ship_type):
-    house = database.get_house(house_name)
-    if not house:
-        return True
-
-    culture = house.get("culture")
-    ship_data = config.SHIPS.get(ship_type, {})
-    allowed = ship_data.get("cultures")
-
-    if not allowed:
-        return True
-
-    return culture in allowed
 
 
 SHIP_CHOICES = [
@@ -72,24 +47,19 @@ class ShipsCog(commands.Cog):
         amount: app_commands.Range[int, 1, 100],
         comment: str | None = None
     ):
-        if not has_role(interaction.user, config.SHIP_CHARTA_ROLE):
-            await interaction.response.send_message("You need the Ship Charta role.", ephemeral=True)
-            return
 
-        house = get_house(interaction.user)
+        house = utils.get_house(interaction.user)
         if not house:
             await interaction.response.send_message("No valid house role found.", ephemeral=True)
             return
 
-        if not ship_allowed_for_house(house, ship_type.value):
-            house_data = database.get_house(house)
-            culture = house_data["culture"] if house_data else "Unknown"
-
-            await interaction.response.send_message(
-                f"{config.SHIPS[ship_type.value]['name']} is not available for your culture ({culture}).",
-                ephemeral=True
-            )
+        allowed, reason = can_build_ship(house, ship_type.value)
+        if not allowed:
+            await interaction.response.send_message(reason, ephemeral=True)
             return
+
+        single_cost = get_modified_ship_cost(house, ship_type.value)
+        total_cost = single_cost * amount
 
         log = await ship_log_channel(interaction.guild)
         if not log:
@@ -112,6 +82,7 @@ class ShipsCog(commands.Cog):
         embed.add_field(name="House", value=house, inline=True)
         embed.add_field(name="Ship", value=ship_type.name, inline=True)
         embed.add_field(name="Amount", value=str(amount), inline=True)
+        embed.add_field(name="Total Cost", value=str(total_cost), inline=True)
 
         if comment:
             embed.add_field(name="Player Comment", value=comment, inline=False)
@@ -132,11 +103,11 @@ class ShipsCog(commands.Cog):
         requested_level: app_commands.Range[int, 1, 10],
         comment: str | None = None
     ):
-        if not has_role(interaction.user, config.SHIP_CHARTA_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("You need the Ship Charta role.", ephemeral=True)
             return
 
-        house = get_house(interaction.user)
+        house = utils.get_house(interaction.user)
         if not house:
             await interaction.response.send_message("No valid house role found.", ephemeral=True)
             return

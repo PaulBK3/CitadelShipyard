@@ -3,26 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import config
 import database
-
-
-def get_house(member: discord.Member):
-    for role in member.roles:
-        for prefix in config.HOUSE_ROLE_FILTER:
-            if role.name.startswith(prefix):
-                return role.name
-    return None
-
-
-def calculate_house_maintenance(house_name):
-    fleet = database.get_fleet_for_house(house_name)
-    total = 0
-
-    for ship_type, amount in fleet.items():
-        ship_data = config.SHIPS.get(ship_type)
-        if ship_data:
-            total += ship_data.get("maintenance", 0) * amount
-
-    return total
+import utils
 
 
 class PlayerCog(commands.Cog):
@@ -31,7 +12,7 @@ class PlayerCog(commands.Cog):
 
     @app_commands.command(name="my_port", description="View your house naval profile")
     async def my_port(self, interaction: discord.Interaction):
-        house = get_house(interaction.user)
+        house = utils.get_house(interaction.user)
         if not house:
             await interaction.response.send_message("No valid house role found.", ephemeral=True)
             return
@@ -52,7 +33,7 @@ class PlayerCog(commands.Cog):
 
     @app_commands.command(name="my_fleet", description="View your house fleet")
     async def my_fleet(self, interaction: discord.Interaction):
-        house = get_house(interaction.user)
+        house = utils.get_house(interaction.user)
         if not house:
             await interaction.response.send_message("No valid house role found.", ephemeral=True)
             return
@@ -67,7 +48,7 @@ class PlayerCog(commands.Cog):
             ship_name = config.SHIPS.get(ship_type, {}).get("name", ship_type)
             msg += f"- {ship_name}: {amount}\n"
 
-        total = calculate_house_maintenance(house)
+        total = utils.calculate_house_maintenance(house)
         msg += f"\nWeekly Maintenance: **{total} gold**"
 
         await interaction.response.send_message(msg, ephemeral=True)

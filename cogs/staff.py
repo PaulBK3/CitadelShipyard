@@ -3,22 +3,7 @@ from discord.ext import commands
 from discord import app_commands
 import config
 import database
-
-
-def has_role(user, role_name):
-    return any(role.name == role_name for role in user.roles)
-
-
-def calculate_house_maintenance(house_name):
-    fleet = database.get_fleet_for_house(house_name)
-    total = 0
-
-    for ship_type, amount in fleet.items():
-        ship_data = config.SHIPS.get(ship_type)
-        if ship_data:
-            total += ship_data.get("maintenance", 0) * amount
-
-    return total
+import utils
 
 
 class StaffCog(commands.Cog):
@@ -42,7 +27,7 @@ class StaffCog(commands.Cog):
         culture: str,
         port_level: app_commands.Range[int, 0, 10]
     ):
-        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
@@ -59,7 +44,7 @@ class StaffCog(commands.Cog):
 
     @staff.command(name="set_culture", description="Set a house culture")
     async def set_culture(self, interaction: discord.Interaction, house: str, culture: str):
-        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
@@ -68,7 +53,7 @@ class StaffCog(commands.Cog):
 
     @staff.command(name="set_port_level", description="Set a house port level")
     async def set_port_level(self, interaction: discord.Interaction, house: str, port_level: app_commands.Range[int, 0, 10]):
-        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
@@ -77,7 +62,7 @@ class StaffCog(commands.Cog):
 
     @staff.command(name="fleet", description="View a house fleet")
     async def fleet(self, interaction: discord.Interaction, house: str):
-        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
@@ -96,11 +81,11 @@ class StaffCog(commands.Cog):
 
     @staff.command(name="maintenance", description="Calculate a house fleet maintenance")
     async def maintenance(self, interaction: discord.Interaction, house: str):
-        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
-        total = calculate_house_maintenance(house)
+        total = utils.calculate_house_maintenance(house)
         await interaction.response.send_message(
             f"**{house}** weekly fleet maintenance: **{total} gold**",
             ephemeral=True
@@ -108,7 +93,7 @@ class StaffCog(commands.Cog):
 
     @staff.command(name="maintenance_all", description="Calculate maintenance for all known houses")
     async def maintenance_all(self, interaction: discord.Interaction):
-        if not has_role(interaction.user, config.SHIP_TEAM_ROLE):
+        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.response.send_message("Ship Staff only.", ephemeral=True)
             return
 
@@ -120,7 +105,7 @@ class StaffCog(commands.Cog):
 
         msg = "**Weekly Fleet Maintenance**\n"
         for house_name in houses:
-            total = calculate_house_maintenance(house_name)
+            total = utils.calculate_house_maintenance(house_name)
             msg += f"- {house_name}: {total} gold\n"
 
         await interaction.response.send_message(msg, ephemeral=True)
