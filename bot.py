@@ -37,7 +37,9 @@ async def setup_hook():
     bot.add_view(ShipRequestView(bot))
     bot.add_view(ApprovedShipView(bot))
     bot.add_view(PortRequestView(bot))
-    bot.add_view(BattleFleetView(bot))
+
+    for battle in database.get_active_battles():
+        bot.add_view(BattleFleetView(bot, battle["id"]))
 
     synced = await bot.tree.sync(guild=guild)
     print(f"Synced {len(synced)} commands to dev guild.")

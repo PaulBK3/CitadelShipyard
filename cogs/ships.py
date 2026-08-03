@@ -23,18 +23,12 @@ async def port_log_channel(guild):
     return None
 
 
-SHIP_CHOICES = [
-    app_commands.Choice(name=data["name"], value=key)
-    for key, data in config.SHIPS.items()
-]
-
-
 class ShipsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
     @app_commands.command(name="buy_ship", description="Request ship construction")
-    @app_commands.choices(ship_type=SHIP_CHOICES)
+    @app_commands.choices(ship_type=utils.SHIP_CHOICES)
     @app_commands.describe(
         ship_type="Type of ship",
         amount="How many ships to build",

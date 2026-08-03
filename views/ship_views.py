@@ -109,6 +109,8 @@ class ApprovedShipView(discord.ui.View):
             await interaction.response.send_message("Only approved requests can be added to the ledger.", ephemeral=True)
             return
 
+        database.ensure_house_exists(request["house"])
+
         if request["added_to_ledger"]:
             await interaction.response.send_message("This request is already in the ledger.", ephemeral=True)
             return
@@ -162,6 +164,7 @@ class ShipRequestView(discord.ui.View):
             await interaction.response.send_message("This request was already handled.", ephemeral=True)
             return
 
+        database.ensure_house_exists(request["house"])
         database.update_ship_request_status(request_id, "approved", interaction.user.name)
 
         ship_data = config.SHIPS.get(request["ship_type"], {})

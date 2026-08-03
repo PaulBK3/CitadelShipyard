@@ -1,7 +1,7 @@
 import discord
 import config
 import database
-
+from discord import app_commands
 
 def has_role(user, role_name):
     return any(role.name == role_name for role in user.roles)
@@ -25,3 +25,33 @@ def calculate_house_maintenance(house_name):
             total += ship_data.get("maintenance", 0) * amount
 
     return total
+
+CULTURE_CHOICES = [
+    app_commands.Choice(name=culture_name, value=culture_name)
+    for culture_name in sorted(config.SEA_CULTURES)
+]
+
+SHIP_CHOICES = [
+    app_commands.Choice(name=data["name"], value=key)
+    for key, data in config.SHIPS.items()
+]
+
+REGION_CHOICES = [
+    app_commands.Choice(name=region_name, value=region_name)
+    for region_name in sorted(config.REGIONS)
+]
+
+
+def get_house_choices(limit: int = 25):
+    """Return up to `limit` app_commands.Choice entries for known houses from the database."""
+    houses = database.get_all_houses()
+    return [app_commands.Choice(name=h, value=h) for h in houses[:limit]]
+
+
+async def house_autocomplete(interaction: discord.Interaction, current: str):
+    """Autocomplete provider: returns database-backed house names matching the current input."""
+    try:
+        matches = database.search_houses(current or "", 25)
+        return [app_commands.Choice(name=h, value=h) for h in matches]
+    except Exception:
+        return []
