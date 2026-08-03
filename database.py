@@ -24,6 +24,14 @@ def setup():
     )
     """)
 
+    # Add missing column if it doesn't exist
+    try:
+        cursor.execute("ALTER TABLE ship_requests ADD COLUMN added_to_ledger INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+    except sqlite3.OperationalError:
+        # Column already exists
+        pass
+
     # ----------------------------
     # House Profiles
     # ----------------------------
@@ -65,6 +73,36 @@ def setup():
         deny_reason TEXT,
         comment TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # ----------------------------
+    # Battles
+    # ----------------------------
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS battles (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        attacker_house TEXT NOT NULL,
+        defender_house TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'preparing',
+        thread_id INTEGER,
+        created_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+    # ----------------------------
+    # Battle Fleets
+    # ----------------------------
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS battle_fleets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        battle_id INTEGER NOT NULL,
+        house TEXT NOT NULL,
+        ship_type TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        FOREIGN KEY (battle_id) REFERENCES battles(id)
     )
     """)
 
@@ -262,3 +300,101 @@ def update_port_request_status(request_id, status, staff_name, deny_reason=None)
 def get_all_houses():
     cursor.execute("SELECT house_name FROM houses ORDER BY house_name")
     return [row[0] for row in cursor.fetchall()]
+
+
+# =========================================================
+# BATTLES
+# =========================================================
+
+def create_battle(name, attacker, defender, created_by):
+    cursor.execute("""
+    INSERT INTO battles(name, attacker_house, defender_house, created_by)
+    VALUES(?, ?, ?, ?)
+    """, (name, attacker, defender, created_by))
+    conn.commit()
+    return cursor.lastrowid
+
+
+def get_battle(battle_id):
+    cursor.execute("""
+    SELECT id, name, attacker_house, defender_house, status, thread_id, created_by
+    FROM battles
+    WHERE id=?
+    """, (battle_id,))
+    row = cursor.fetchone()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "name": row[1],
+        "attacker_house": row[2],
+        "defender_house": row[3],
+        "status": row[4],
+        "thread_id": row[5],
+        "created_by": row[6],
+    }
+
+
+def update_battle_thread(battle_id, thread_id):
+    cursor.execute("""
+    UPDATE battles
+    SET thread_id=?
+    WHERE id=?
+    """, (thread_id, battle_id))
+    conn.commit()
+
+
+def get_active_battles():
+    cursor.execute("""
+    SELECT id, name, attacker_house, defender_house, status, thread_id
+    FROM battles
+    WHERE status='preparing'
+    """)
+    rows = cursor.fetchall()
+    return [{
+        "id": row[0],
+        "name": row[1],
+        "attacker_house": row[2],
+        "defender_house": row[3],
+        "status": row[4],
+        "thread_id": row[5],
+    } for row in rows]
+
+
+# =========================================================
+# BATTLE FLEETS
+# =========================================================
+
+def add_battle_fleet_entry(battle_id, house, ship_type, amount):
+    cursor.execute("""
+    INSERT INTO battle_fleets(battle_id, house, ship_type, amount)
+    VALUES(?, ?, ?, ?)
+    """, (battle_id, house, ship_type, amount))
+    conn.commit()
+    return cursor.lastrowid
+
+
+def get_battle_fleet(battle_id, house):
+    cursor.execute("""
+    SELECT ship_type, SUM(amount)
+    FROM battle_fleets
+    WHERE battle_id=? AND house=?
+    GROUP BY ship_type
+    """, (battle_id, house))
+    rows = cursor.fetchall()
+    return {ship_type: amount for ship_type, amount in rows}
+
+
+def get_all_battle_fleets(battle_id):
+    cursor.execute("""
+    SELECT house, ship_type, amount
+    FROM battle_fleets
+    WHERE battle_id=?
+    """, (battle_id,))
+    rows = cursor.fetchall()
+    fleets = {}
+    for house, ship_type, amount in rows:
+        if house not in fleets:
+            fleets[house] = {}
+        fleets[house][ship_type] = amount
+    return fleets

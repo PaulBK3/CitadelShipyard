@@ -3,6 +3,7 @@ GUILD_ID = 1222288591707967568
 SHIP_TEAM_ROLE = "Travel Team"
 SAVE_EDIT_CHANNEL = "✍︱save-edit-list"
 SHIP_LOG_CHANNEL = "ship-log"
+SEA_BATTLE_CHANNEL = "⚓︱sea-battles"
 
 # Used to detect a player's house role
 HOUSE_ROLE_FILTER = [
@@ -285,7 +286,7 @@ SEA_CULTURES = {
                 "ship_types": "ALL",
                 "multiplier": 0.25,
                 "prestige_multiplier": 0.75,
-                "reason": "Pirates pay only 25% of ship maintenance in gold."
+                "reason": "Pirates pay only 25 percent of ship maintenance in gold."
             }
         ],
         "fleet_rules": {

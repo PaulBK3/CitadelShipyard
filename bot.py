@@ -1,3 +1,5 @@
+import os
+
 import discord
 from discord.ext import commands
 import config
@@ -5,11 +7,12 @@ import database
 
 from views.ship_views import ShipRequestView, ApprovedShipView
 from views.port_views import PortRequestView
+from views.battle_views import BattleFleetView
+from dotenv import load_dotenv
 
+
+load_dotenv()
 intents = discord.Intents.default()
-intents.guilds = True
-intents.members = True
-intents.message_content = False
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -34,9 +37,20 @@ async def setup_hook():
     bot.add_view(ShipRequestView(bot))
     bot.add_view(ApprovedShipView(bot))
     bot.add_view(PortRequestView(bot))
+    bot.add_view(BattleFleetView(bot))
 
     synced = await bot.tree.sync(guild=guild)
     print(f"Synced {len(synced)} commands to dev guild.")
 
 
-bot.run(config.TOKEN)
+# -------------------------------
+# Run
+# -------------------------------
+if __name__ == '__main__':
+    TOKEN = os.getenv("DISCORD_TOKEN")
+    if not TOKEN:
+        if not TOKEN:
+            print("Please set DISCORD_TOKEN in your environment or .env file.")
+            exit(1)
+    else:
+        bot.run(TOKEN)

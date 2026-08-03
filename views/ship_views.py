@@ -33,17 +33,19 @@ class DenyShipReasonModal(discord.ui.Modal, title="Deny Ship Request"):
         self.request_id = request_id
 
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
-            await interaction.response.send_message("Ship Staff only.", ephemeral=True)
+            await interaction.followup.send("Ship Staff only.", ephemeral=True)
             return
 
         request = database.get_ship_request(self.request_id)
         if not request:
-            await interaction.response.send_message("Request not found.", ephemeral=True)
+            await interaction.followup.send("Request not found.", ephemeral=True)
             return
 
         if request["status"] != "pending":
-            await interaction.response.send_message("This request was already handled.", ephemeral=True)
+            await interaction.followup.send("This request was already handled.", ephemeral=True)
             return
 
         database.update_ship_request_status(
@@ -165,12 +167,6 @@ class ShipRequestView(discord.ui.View):
         ship_data = config.SHIPS.get(request["ship_type"], {})
         total_cost = ship_data.get("cost", 0) * request["amount"]
 
-        save_channel = await save_edit_channel(interaction.guild)
-        if save_channel:
-            await save_channel.send(
-                f"<@{request['user_id']}>:\n- Remove {total_cost} gold"
-            )
-
         new_embed = discord.Embed(
             title="Ship Request Approved",
             description=f"{request['house']} ship request approved."
@@ -195,6 +191,25 @@ class ShipRequestView(discord.ui.View):
             f"Your ship request for **{request['amount']}x {request['ship_type']}** "
             f"for **{request['house']}** was approved."
         )
+        save_edit = await save_edit_channel(interaction.guild)
+        if save_edit:
+            if request["comment"]:
+                comment_text = f"\nComment: {request['comment']}"
+            else:
+                comment_text = ""
+            if request["house"].startswith("Free City"):
+                member = interaction.guild.get_member(request["user_id"])
+                player_name = member.display_name if member else f"<@{request['user_id']}>"
+
+                await save_edit.send(
+                f"{player_name}:\n- Remove {total_cost} gold"
+                f"(approved ship request #{request_id}, {request['amount']}x {ship_data['name']}){comment_text}"
+            ) 
+            else:
+                await save_edit.send(
+                    f"{request['house']}:\n- Remove {total_cost} gold "
+                    f"(approved ship request #{request_id}, {request['amount']}x {ship_data['name']}){comment_text}"
+                )
 
     @discord.ui.button(label="Deny", style=discord.ButtonStyle.red, custom_id="ship_request_deny")
     async def deny(self, interaction: discord.Interaction, button: discord.ui.Button):
