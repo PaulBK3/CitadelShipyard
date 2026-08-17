@@ -223,116 +223,272 @@ class HouseSelectView(discord.ui.View):
             return False
         return True
 
-    async def house_selected(self, interaction: discord.Interaction):
-        selected_house = interaction.data.get("values", [None])[0]
+    async def house_selected(
+        self,
+        interaction: discord.Interaction
+    ):
+        selected_house = interaction.data.get(
+            "values", [None]
+        )[0]
+
         if not selected_house:
-            await interaction.response.send_message("No house selected.", ephemeral=True)
+            await interaction.response.send_message(
+                "No house selected.",
+                ephemeral=True
+            )
             return
 
-        available_fleet = database.get_available_fleet_for_house(selected_house)
+        available_fleet = database.get_available_fleet_for_house(
+            selected_house
+        )
+
         if not available_fleet:
-            await interaction.response.send_message("No ships available for that house.", ephemeral=True)
+            await interaction.response.send_message(
+                "No ships available for that house.",
+                ephemeral=True
+            )
             return
 
-        await interaction.response.edit_message(
-            content=f"Select ships for **{selected_house}**:",
-            view=ShipSelectView(
-                self.battle_id,
-                selected_house,
-                available_fleet,
-                self.user_id,
-                self.origin_channel_id,
-                self.origin_message_id
+        await interaction.response.send_modal(
+            CommanderModal(
+                battle_id=self.battle_id,
+                house=selected_house,
+                available_fleet=available_fleet,
+                bot=interaction.client,
+                user_id=self.user_id,
+                origin_channel_id=self.origin_channel_id,
+                origin_message_id=self.origin_message_id
             )
         )
 
 
 class ShipSelectView(discord.ui.View):
-    def __init__(self, battle_id: int, house: str, available_fleet: dict, user_id: int, origin_channel_id: int, origin_message_id: int):
+    def __init__(
+        self,
+        battle_id: int,
+        house: str,
+        available_fleet: dict,
+        commander: str,
+        bot,
+        user_id: int,
+        origin_channel_id: int,
+        origin_message_id: int
+    ):
         super().__init__(timeout=None)
+
         self.battle_id = battle_id
         self.house = house
         self.available_fleet = available_fleet
+        self.commander = commander
+        self.bot = bot
         self.user_id = user_id
         self.origin_channel_id = origin_channel_id
         self.origin_message_id = origin_message_id
-        self.selected_ships = {}
+
+        # This is the ONLY place selected quantities are stored.
+        # Everything starts at 0.
+        self.selected_ships = {
+            ship_type: 0
+            for ship_type in available_fleet
+        }
 
         for ship_type, max_amount in available_fleet.items():
-            ship_name = config.SHIPS.get(ship_type, {}).get("name", ship_type)
-            if max_amount <= 24:
-                options = [discord.SelectOption(label=str(i), value=str(i)) for i in range(max_amount + 1)]
-            else:
-                options = [discord.SelectOption(label=str(i), value=str(i)) for i in range(24)]
-                options.append(discord.SelectOption(label="24+ (enter exact amount)", value="24plus"))
-            select = discord.ui.Select(
-                placeholder=f"{ship_name} (max {max_amount})",
-                options=options,
-                custom_id=f"ship_select_{ship_type}",
-                min_values=1,
-                max_values=1
-            )
-            select.callback = self.update_selection
-            self.add_item(select)
+            ship_name = config.SHIPS.get(
+                ship_type, {}
+            ).get("name", ship_type)
 
-    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+            button = discord.ui.Button(
+                label=f"{ship_name} (0)",
+                style=discord.ButtonStyle.secondary,
+                custom_id=f"ship_amount_{battle_id}_{ship_type}"
+            )
+
+            async def callback(
+                interaction: discord.Interaction,
+                ship_type=ship_type
+            ):
+                await self.ship_selected(interaction, ship_type)
+
+            button.callback = callback
+            self.add_item(button)
+
+        self.add_item(
+            discord.ui.Button(
+                label="Submit Fleet",
+                style=discord.ButtonStyle.success,
+                custom_id=f"submit_fleet_{battle_id}"
+            )
+        )
+
+        # Assign callback to submit button
+        self.children[-1].callback = self.submit_fleet
+
+    async def interaction_check(
+        self,
+        interaction: discord.Interaction
+    ) -> bool:
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message("Only the original user can select ships.", ephemeral=True)
+            await interaction.response.send_message(
+                "Only the original user can configure this fleet.",
+                ephemeral=True
+            )
             return False
+
         return True
 
-    async def update_selection(self, interaction: discord.Interaction):
+    async def ship_selected(
+        self,
+        interaction: discord.Interaction,
+        ship_type: str
+    ):
+        ship_name = config.SHIPS.get(
+            ship_type, {}
+        ).get("name", ship_type)
+
+        max_amount = self.available_fleet[ship_type]
+        current_amount = self.selected_ships.get(ship_type, 0)
+
+        await interaction.response.send_modal(
+            ShipQuantityModal(
+                ship_type=ship_type,
+                ship_name=ship_name,
+                max_amount=max_amount,
+                current_amount=current_amount,
+                ship_view=self
+            )
+        )
+    def get_ship_selection_text(self):
+        lines = [
+            f"**House:** {self.house}",
+            f"**Commander:** {self.commander}",
+            "",
+            "**Current Fleet:**"
+        ]
+
+        has_ships = False
+
+        for ship_type, amount in self.selected_ships.items():
+            if amount > 0:
+                has_ships = True
+
+                ship_name = config.SHIPS.get(
+                    ship_type, {}
+                ).get("name", ship_type)
+
+                lines.append(
+                    f"• {ship_name}: {amount}"
+                )
+
+        if not has_ships:
+            lines.append("*No ships selected.*")
+
+        lines.extend([
+            "",
+            "Click a ship below to enter its quantity."
+        ])
+
+        return "\n".join(lines)
+
+
+    def update_ship_buttons(self):
         for item in self.children:
-            if isinstance(item, discord.ui.Select):
-                ship_type = item.custom_id.replace("ship_select_", "")
-                amount = int(item.values[0]) if item.values else 0
-                self.selected_ships[ship_type] = amount
-        await interaction.response.defer()
+            if not isinstance(item, discord.ui.Button):
+                continue
 
-    @discord.ui.button(label="Submit Fleet", style=discord.ButtonStyle.green)
-    async def submit_fleet(self, interaction: discord.Interaction, button: discord.ui.Button):
-        fleet = {ship_type: amount for ship_type, amount in self.selected_ships.items() if amount > 0}
+            if not item.custom_id:
+                continue
+
+            if not item.custom_id.startswith("ship_amount_"):
+                continue
+
+            ship_type = item.custom_id.split(
+                "_", 3
+            )[-1]
+
+            amount = self.selected_ships.get(
+                ship_type, 0
+            )
+
+            ship_name = config.SHIPS.get(
+                ship_type, {}
+            ).get("name", ship_type)
+
+            item.label = f"{ship_name} ({amount})"
+    async def submit_fleet(
+        self,
+        interaction: discord.Interaction
+    ):
+        # Only include ships the user actually selected.
+        fleet = {
+            ship_type: amount
+            for ship_type, amount in self.selected_ships.items()
+            if amount > 0
+        }
+
         if not fleet:
-            await interaction.response.send_message("No ships selected.", ephemeral=True)
-            return
-
-        total_supply = 0
-        for ship_type, amount in fleet.items():
-            ship_data = config.SHIPS.get(ship_type)
-            if ship_data:
-                total_supply += ship_data.get("supply_cost", 0) * amount
-
-        if total_supply > 0:
             await interaction.response.send_message(
-                f"Insufficient supply! Your fleet requires {total_supply} supply points. Add more supply ships.",
+                "No ships selected.",
                 ephemeral=True
             )
             return
 
-        large_ship_types = [ship_type for ship_type, amount in self.selected_ships.items() if amount == "24plus"]
-        if large_ship_types:
-            modal = ShipQuantityModal(
-                self.battle_id,
-                self.house,
-                self.selected_ships,
-                self.available_fleet,
-                interaction.client,
-                self.origin_channel_id,
-                self.origin_message_id,
-                large_ship_types
+        # Check supply
+        total_supply = 0
+
+        for ship_type, amount in fleet.items():
+            ship_data = config.SHIPS.get(ship_type)
+
+            if ship_data:
+                total_supply += (
+                    ship_data.get("supply_cost", 0) * amount
+                )
+
+        if total_supply > 0:
+            await interaction.response.send_message(
+                f"Insufficient supply! Your fleet requires "
+                f"{total_supply} supply points. "
+                f"Add more supply ships.",
+                ephemeral=True
             )
-            await interaction.response.send_modal(modal)
             return
 
-        modal = CommanderModal(
+        await interaction.response.defer(ephemeral=True)
+
+        # THIS is the first point where ships are actually reserved.
+        success = database.reserve_battle_fleet_entries(
             self.battle_id,
             self.house,
             fleet,
-            interaction.client,
-            self.origin_channel_id,
-            self.origin_message_id
+            self.commander
         )
-        await interaction.response.send_modal(modal)
+
+        if not success:
+            await interaction.followup.send(
+                "Insufficient ships available to submit this fleet. "
+                "Another fleet may have claimed them.",
+                ephemeral=True
+            )
+            return
+
+        fleet_str = "\n".join(
+            f"- {config.SHIPS.get(ship_type, {}).get('name', ship_type)}: {amount}"
+            for ship_type, amount in fleet.items()
+        )
+
+        await interaction.followup.send(
+            f"Fleet submitted for **{self.house}** "
+            f"under commander **{self.commander}**:\n"
+            f"{fleet_str}",
+            ephemeral=True
+        )
+
+        await refresh_battle_message(
+            self.bot,
+            self.origin_channel_id,
+            self.origin_message_id,
+            self.battle_id,
+            BattleFleetView(self.bot, self.battle_id)
+        )
 
 
 class RemoveFleetView(discord.ui.View):
@@ -390,74 +546,194 @@ class RemoveFleetView(discord.ui.View):
 
 
 class ShipQuantityModal(discord.ui.Modal):
-    def __init__(self, battle_id, house, selected_ships, available_fleet, bot, origin_channel_id: int, origin_message_id: int, large_ship_types: list):
-        super().__init__(title="Enter Large Ship Amounts")
-        self.battle_id = battle_id
-        self.house = house
-        self.selected_ships = selected_ships
-        self.available_fleet = available_fleet
-        self.bot = bot
-        self.origin_channel_id = origin_channel_id
-        self.origin_message_id = origin_message_id
-        self.large_ship_types = large_ship_types
+    def __init__(
+        self,
+        ship_type: str,
+        ship_name: str,
+        max_amount: int,
+        current_amount: int,
+        ship_view: ShipSelectView
+    ):
+        super().__init__(title=f"{ship_name} Quantity")
 
-        for ship_type in large_ship_types:
-            max_amount = available_fleet.get(ship_type, 0)
-            ship_name = config.SHIPS.get(ship_type, {}).get("name", ship_type)
-            self.add_item(discord.ui.TextInput(
-                label=f"{ship_name} amount (max {max_amount})",
-                placeholder=str(max_amount),
-                required=True,
-                max_length=5
-            ))
+        self.ship_type = ship_type
+        self.max_amount = max_amount
+        self.ship_view = ship_view
 
-    async def on_submit(self, interaction: discord.Interaction):
-        fields = [item for item in self.children if isinstance(item, discord.ui.TextInput)]
-        for ship_type, field in zip(self.large_ship_types, fields):
-            try:
-                amount = int(str(field.value).strip())
-            except ValueError:
-                await interaction.response.send_message(f"Invalid amount for {ship_type}. Please enter a number.", ephemeral=True)
-                return
+        self.amount = discord.ui.TextInput(
+            label=f"{ship_name} amount",
+            placeholder=f"Enter 0-{max_amount}",
+            default=str(current_amount),
+            required=True,
+            max_length=10
+        )
 
-            max_amount = self.available_fleet.get(ship_type, 0)
-            if amount < 0 or amount > max_amount:
-                await interaction.response.send_message(
-                    f"Amount for {ship_type} must be between 0 and {max_amount}.",
-                    ephemeral=True
-                )
-                return
+        self.add_item(self.amount)
 
-            self.selected_ships[ship_type] = amount
-
-        fleet = {ship_type: amount for ship_type, amount in self.selected_ships.items() if isinstance(amount, int) and amount > 0}
-        if not fleet:
-            await interaction.response.send_message("No ships selected.", ephemeral=True)
-            return
-
-        total_supply = 0
-        for ship_type, amount in fleet.items():
-            ship_data = config.SHIPS.get(ship_type)
-            if ship_data:
-                total_supply += ship_data.get("supply_cost", 0) * amount
-
-        if total_supply > 0:
+    async def on_submit(
+        self,
+        interaction: discord.Interaction
+    ):
+        try:
+            amount = int(str(self.amount.value).strip())
+        except ValueError:
             await interaction.response.send_message(
-                f"Insufficient supply! Your fleet requires {total_supply} supply points. Add more supply ships.",
+                "Please enter a whole number.",
                 ephemeral=True
             )
             return
 
-        modal = CommanderModal(
-            self.battle_id,
-            self.house,
-            fleet,
-            self.bot,
-            self.origin_channel_id,
-            self.origin_message_id
-        )
-        await interaction.response.send_modal(modal)
+        if amount < 0:
+            await interaction.response.send_message(
+                "The amount cannot be negative.",
+                ephemeral=True
+            )
+            return
 
+        if amount > self.max_amount:
+            await interaction.response.send_message(
+                f"You only have **{self.max_amount}** "
+                f"of this ship available.",
+                ephemeral=True
+            )
+            return
+
+        # Only change the selected quantity.
+        self.ship_view.selected_ships[self.ship_type] = amount
+
+        # Rebuild the buttons so they show the selected amounts.
+        self.ship_view.update_ship_buttons()
+
+        await interaction.response.edit_message(
+            content=self.ship_view.get_ship_selection_text(),
+            view=self.ship_view
+        )
+
+class CommanderView(discord.ui.View):
+    def __init__(
+        self,
+        battle_id: int,
+        house: str,
+        available_fleet: dict,
+        user_id: int,
+        origin_channel_id: int,
+        origin_message_id: int
+    ):
+        super().__init__(timeout=None)
+
+        self.battle_id = battle_id
+        self.house = house
+        self.available_fleet = available_fleet
+        self.user_id = user_id
+        self.origin_channel_id = origin_channel_id
+        self.origin_message_id = origin_message_id
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message(
+                "Only the original user can configure this fleet.",
+                ephemeral=True
+            )
+            return False
+        return True
+
+    @discord.ui.button(
+        label="Enter Commander",
+        style=discord.ButtonStyle.primary
+    )
+    async def enter_commander(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button
+    ):
+        await interaction.response.send_modal(
+            CommanderNameModal(
+                self.battle_id,
+                self.house,
+                self.available_fleet,
+                self.user_id,
+                self.origin_channel_id,
+                self.origin_message_id
+            )
+        )
+
+class ShipAmountModal(discord.ui.Modal):
+    def __init__(
+        self,
+        ship_type: str,
+        ship_name: str,
+        max_amount: int,
+        current_amount: int,
+        ship_view: ShipSelectView
+    ):
+        super().__init__(title=f"{ship_name} Amount")
+
+        self.ship_type = ship_type
+        self.max_amount = max_amount
+        self.ship_view = ship_view
+
+        self.amount = discord.ui.TextInput(
+            label=f"{ship_name} (max {max_amount})",
+            placeholder=str(current_amount),
+            default=str(current_amount),
+            required=True,
+            max_length=10
+        )
+
+        self.add_item(self.amount)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        try:
+            amount = int(str(self.amount.value).strip())
+        except ValueError:
+            await interaction.response.send_message(
+                "Please enter a whole number.",
+                ephemeral=True
+            )
+            return
+
+        if amount < 0:
+            await interaction.response.send_message(
+                "The amount cannot be negative.",
+                ephemeral=True
+            )
+            return
+
+        if amount > self.max_amount:
+            await interaction.response.send_message(
+                f"You only have **{self.max_amount}** "
+                f"of this ship available.",
+                ephemeral=True
+            )
+            return
+
+        self.ship_view.selected_ships[self.ship_type] = amount
+
+        # Show current selections again
+        lines = []
+
+        for ship_type, selected_amount in self.ship_view.selected_ships.items():
+            if selected_amount > 0:
+                ship_name = config.SHIPS.get(
+                    ship_type, {}
+                ).get("name", ship_type)
+
+                lines.append(
+                    f"**{ship_name}:** {selected_amount}"
+                )
+
+        if not lines:
+            lines.append("*No ships selected yet.*")
+
+        await interaction.response.edit_message(
+            content=(
+                f"**House:** {self.ship_view.house}\n"
+                f"**Commander:** {self.ship_view.commander}\n\n"
+                + "\n".join(lines)
+                + "\n\nClick a ship to change its quantity."
+            ),
+            view=self.ship_view
+        )
 
 class CommanderModal(discord.ui.Modal, title="Fleet Commander"):
     commander = discord.ui.TextInput(
@@ -466,6 +742,51 @@ class CommanderModal(discord.ui.Modal, title="Fleet Commander"):
         required=True,
         max_length=100
     )
+
+    def __init__(
+        self,
+        battle_id: int,
+        house: str,
+        available_fleet: dict,
+        bot,
+        user_id: int,
+        origin_channel_id: int,
+        origin_message_id: int
+    ):
+        super().__init__()
+
+        self.battle_id = battle_id
+        self.house = house
+        self.available_fleet = available_fleet
+        self.bot = bot
+        self.user_id = user_id
+        self.origin_channel_id = origin_channel_id
+        self.origin_message_id = origin_message_id
+
+    async def on_submit(self, interaction: discord.Interaction):
+        commander_name = str(self.commander.value).strip()
+
+        # IMPORTANT:
+        # Do NOT reserve/add any ships here.
+        # This only moves the user to the ship selection view.
+
+        await interaction.response.edit_message(
+            content=(
+                f"**House:** {self.house}\n"
+                f"**Commander:** {commander_name}\n\n"
+                "Select a ship type below to enter the quantity."
+            ),
+            view=ShipSelectView(
+                battle_id=self.battle_id,
+                house=self.house,
+                available_fleet=self.available_fleet,
+                commander=commander_name,
+                bot=self.bot,
+                user_id=self.user_id,
+                origin_channel_id=self.origin_channel_id,
+                origin_message_id=self.origin_message_id
+            )
+        )
 
     def __init__(self, battle_id, house, fleet, bot, origin_channel_id: int, origin_message_id: int):
         super().__init__()
