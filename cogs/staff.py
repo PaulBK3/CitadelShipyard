@@ -6,7 +6,40 @@ import database
 import utils
 from views.battle_views import BattleFleetView
 
+def get_available_combat_conditions():
+    conditions = {}
 
+    for culture_data in config.SEA_CULTURES.values():
+        for modifier in culture_data.get("combat_modifiers", []):
+            condition = modifier.get("condition")
+
+            if not condition:
+                continue
+
+            # Keep the config value as the actual submitted value.
+            # The display name can be the same for now.
+            conditions[str(condition)] = str(condition)
+
+    return conditions
+
+async def culture_modifier_autocomplete(
+    interaction: discord.Interaction,
+    current: str
+):
+    conditions = (
+        get_available_combat_conditions()
+    )
+
+    current = current.lower()
+
+    return [
+        app_commands.Choice(
+            name=display_name[:100],
+            value=value[:100]
+        )
+        for value, display_name in conditions.items()
+        if current in display_name.lower()
+    ][:25]
 
 class StaffCog(commands.Cog):
     def __init__(self, bot):
@@ -179,13 +212,14 @@ class StaffCog(commands.Cog):
         await interaction.followup.send(msg, ephemeral=True)
 
     @staff.command(name="create_battle", description="Create a new naval battle")
-    @app_commands.autocomplete(attacker=utils.house_autocomplete, defender=utils.house_autocomplete)
+    @app_commands.autocomplete(attacker=utils.house_autocomplete, defender=utils.house_autocomplete, culture_modifier = culture_modifier_autocomplete)
     @app_commands.describe(
         name="Battle name",
         attacker="Attacking side",
-        defender="Defending side"
+        defender="Defending side",
+        culture_modifier="Optional culture modifier for the battle"
     )
-    async def create_battle(self, interaction: discord.Interaction, name: str, attacker: str, defender: str):
+    async def create_battle(self, interaction: discord.Interaction, name: str, attacker: str, defender: str, culture_modifier: str | None = None):
         await interaction.response.defer(ephemeral=True)
         
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
@@ -193,7 +227,10 @@ class StaffCog(commands.Cog):
             return
 
         # Create battle
-        battle_id = database.create_battle(name, attacker, defender, interaction.user.id)
+        battle_id = database.create_battle(name, attacker, defender, interaction.user.id, culture_modifiers=(
+        [culture_modifier]
+        if culture_modifier
+        else []))
 
         # Create thread in ship log channel
         guild = interaction.guild
