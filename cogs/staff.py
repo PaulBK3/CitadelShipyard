@@ -48,9 +48,8 @@ class StaffCog(commands.Cog):
     staff = app_commands.Group(name="staff", description="Ship staff commands")
 
     @staff.command(name="set_house_profile", description="Create or update a house profile")
-    @app_commands.autocomplete(house=utils.house_autocomplete)
+    @app_commands.autocomplete(house=utils.house_autocomplete, region=utils.region_autocomplete)
     @app_commands.choices(culture=utils.CULTURE_CHOICES)
-    @app_commands.choices(region=utils.REGION_CHOICES)
     @app_commands.describe(
         house="House name",
         duchy="Duchy name",
@@ -99,8 +98,7 @@ class StaffCog(commands.Cog):
         await interaction.followup.send(f"Set **{house}** culture to **{culture.value}**.", ephemeral=True)
 
     @staff.command(name="set_region", description="Set a house region")
-    @app_commands.choices(region=utils.REGION_CHOICES)
-    @app_commands.autocomplete(house=utils.house_autocomplete)
+    @app_commands.autocomplete(house=utils.house_autocomplete, region=utils.region_autocomplete)
     async def set_region(self, interaction: discord.Interaction, house: str, region: app_commands.Choice[str]):
         await interaction.response.defer(ephemeral=True)
         
@@ -176,11 +174,14 @@ class StaffCog(commands.Cog):
         await interaction.followup.send(msg, ephemeral=True)
 
     @staff.command(
-        name="ships_region",
-        description="Show all ships belonging to houses in a region"
+    name="ships_region",
+    description="Show all ships belonging to houses in a region"
     )
     @app_commands.describe(
         region="Region to inspect"
+    )
+    @app_commands.autocomplete(
+        region=utils.region_autocomplete
     )
     async def ships_region(
         self,

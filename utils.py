@@ -26,6 +26,7 @@ def calculate_house_maintenance(house_name):
 
     return total
 
+
 CULTURE_CHOICES = [
     app_commands.Choice(name=culture_name, value=culture_name)
     for culture_name in sorted(config.SEA_CULTURES)
@@ -36,10 +37,22 @@ SHIP_CHOICES = [
     for key, data in config.SHIPS.items()
 ]
 
-REGION_CHOICES = [
-    app_commands.Choice(name=region_name, value=region_name)
-    for region_name in sorted(config.REGIONS)
-]
+async def region_autocomplete(
+    interaction: discord.Interaction,
+    current: str
+):
+    regions = database.get_all_regions()
+
+    current = current.lower()
+
+    return [
+        app_commands.Choice(
+            name=region,
+            value=region
+        )
+        for region in regions
+        if current in region.lower()
+    ][:25]
 
 
 def get_house_choices(limit: int = 25):

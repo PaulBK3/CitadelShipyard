@@ -11,9 +11,7 @@ HOUSE_ROLE_FILTER = [
     "Free City of ",
     "Kingdom of "
 ]
-REGIONS = [
-    "The North"
-]
+
 SHIPS = {
     "Longship": {
         "name": "Longship",
