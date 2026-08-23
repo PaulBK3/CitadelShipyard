@@ -175,6 +175,90 @@ class StaffCog(commands.Cog):
 
         await interaction.followup.send(msg, ephemeral=True)
 
+    @staff.command(
+        name="ships_region",
+        description="Show all ships belonging to houses in a region"
+    )
+    @app_commands.describe(
+        region="Region to inspect"
+    )
+    async def ships_region(
+        self,
+        interaction: discord.Interaction,
+        region: str
+    ):
+        await interaction.response.defer(
+            ephemeral=False
+        )
+
+        if not utils.has_role(
+            interaction.user,
+            config.SHIP_TEAM_ROLE
+        ):
+            await interaction.followup.send(
+                "Ship Staff only.",
+                ephemeral=True
+            )
+            return
+
+        ships = database.get_ships_by_region(
+            region
+        )
+
+        if not ships:
+            await interaction.followup.send(
+                f"No ships found for region **{region}**.",
+                ephemeral=True
+            )
+            return
+
+        msg = f"**⚓ Ships — {region}**\n\n"
+
+        totals = {}
+
+        for house, fleet in ships.items():
+            msg += f"**{house}**\n"
+
+            for ship_type, amount in fleet.items():
+                ship_name = config.SHIPS.get(
+                    ship_type,
+                    {}
+                ).get(
+                    "name",
+                    ship_type
+                )
+
+                msg += (
+                    f"- {ship_name}: {amount}\n"
+                )
+
+                totals[ship_type] = (
+                    totals.get(ship_type, 0)
+                    + amount
+                )
+
+            msg += "\n"
+
+        msg += "**Regional Total**\n"
+
+        for ship_type, amount in totals.items():
+            ship_name = config.SHIPS.get(
+                ship_type,
+                {}
+            ).get(
+                "name",
+                ship_type
+            )
+
+            msg += (
+                f"- {ship_name}: {amount}\n"
+            )
+
+        await interaction.followup.send(
+            msg,
+            ephemeral=False
+        )
+
     @staff.command(name="maintenance", description="Calculate a house fleet maintenance")
     @app_commands.autocomplete(house=utils.house_autocomplete)
     async def maintenance(self, interaction: discord.Interaction, house: str):
