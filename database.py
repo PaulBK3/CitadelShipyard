@@ -782,27 +782,24 @@ def remove_fleet_entry(house, ship_type, amount):
 def get_ships_by_region(region):
     cursor.execute("""
         SELECT
-            h.name,
+            h.house_name,
             fl.ship_type,
             SUM(fl.amount)
         FROM houses h
-        LEFT JOIN fleet_ledger fl
-            ON fl.house = h.name
-        WHERE LOWER(h.region) = LOWER(?)
-        GROUP BY h.name, fl.ship_type
-        ORDER BY h.name, fl.ship_type
+        JOIN fleet_ledger fl
+            ON fl.house = h.house_name
+        WHERE h.region = ?
+        GROUP BY h.house_name, fl.ship_type
+        ORDER BY h.house_name, fl.ship_type
     """, (region,))
 
     rows = cursor.fetchall()
 
     result = {}
 
-    for house, ship_type, amount in rows:
-        if not ship_type:
-            continue
-
-        result.setdefault(house, {})
-        result[house][ship_type] = amount
+    for house_name, ship_type, amount in rows:
+        result.setdefault(house_name, {})
+        result[house_name][ship_type] = amount
 
     return result
 
