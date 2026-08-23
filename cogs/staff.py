@@ -192,7 +192,7 @@ class StaffCog(commands.Cog):
 
     @staff.command(name="maintenance_all", description="Calculate maintenance for all known houses")
     async def maintenance_all(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=False)
         
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
@@ -209,7 +209,7 @@ class StaffCog(commands.Cog):
             total = utils.calculate_house_maintenance(house_name)
             msg += f"- {house_name}: {total} gold\n"
 
-        await interaction.followup.send(msg)
+        await interaction.followup.send(msg, ephemeral=False)
 
     @staff.command(name="create_battle", description="Create a new naval battle")
     @app_commands.autocomplete(attacker=utils.house_autocomplete, defender=utils.house_autocomplete, culture_modifier = culture_modifier_autocomplete)
