@@ -39,7 +39,7 @@ SHIP_CHOICES = [
 
 async def region_autocomplete(interaction: discord.Interaction,current: str):
     try:
-        regions = database.get_all_regions()
+        regions = database.get_all_regions(current or "", 25)
 
         current = current.lower()
 
@@ -48,9 +48,7 @@ async def region_autocomplete(interaction: discord.Interaction,current: str):
                 name=region,
                 value=region
             )
-            for region in regions
-            if current in region.lower()
-        ][:25]
+            for region in regions]     
     except Exception:
         return []
 
