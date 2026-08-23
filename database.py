@@ -240,6 +240,11 @@ def setup():
     except sqlite3.OperationalError:
         pass
 
+    try:
+        cursor.execute("ALTER TABLE battle_fleets ADD COLUMN fleet_id INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
 
 # =========================================================
 # AVAILABILITY / RESERVATION HELPERS
@@ -1369,42 +1374,6 @@ def get_houses_for_side(battle_id, side):
 # =========================================================
 # BATTLE FLEETS
 # =========================================================
-
-def add_battle_fleet_entry(battle_id, house, ship_type, amount, commander=None, fleet_id=None):
-    cursor.execute("""
-    INSERT INTO battle_fleets(battle_id, house, ship_type, amount, commander, fleet_id)
-    VALUES(?, ?, ?, ?, ?, ?)
-    """, (battle_id, house, ship_type, amount, commander, fleet_id))
-    conn.commit()
-    return cursor.lastrowid
-
-
-def get_battle_fleet(battle_id, house):
-    cursor.execute("""
-    SELECT ship_type, SUM(amount)
-    FROM battle_fleets
-    WHERE battle_id=? AND house=?
-    GROUP BY ship_type
-    """, (battle_id, house))
-    rows = cursor.fetchall()
-    return {ship_type: amount for ship_type, amount in rows}
-
-
-def get_all_battle_fleets(battle_id):
-    cursor.execute("""
-    SELECT house, ship_type, amount
-    FROM battle_fleets
-    WHERE battle_id=?
-    """, (battle_id,))
-    rows = cursor.fetchall()
-    fleets = {}
-    for house, ship_type, amount in rows:
-        if house not in fleets:
-            fleets[house] = {}
-        fleets[house][ship_type] = fleets[house].get(ship_type, 0) + amount
-    return fleets
-
-
 def get_battle_fleet_groups(battle_id):
     cursor.execute("""
         SELECT
