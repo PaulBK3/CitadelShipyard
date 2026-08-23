@@ -528,22 +528,10 @@ class HouseSelectView(discord.ui.View):
             return
 
         # Recheck availability because the list may be stale.
-        owned = database.get_fleet_for_house(selected_house)
-        committed = database.get_committed_ships_for_house(selected_house)
-        available_fleet = database.get_available_fleet_for_house(selected_house)
+        available_fleet = database.get_available_fleet_for_house(
+            selected_house
+        )
 
-        print(
-            f"[BATTLE DEBUG] house={selected_house}"
-        )
-        print(
-            f"[BATTLE DEBUG] owned={owned}"
-        )
-        print(
-            f"[BATTLE DEBUG] committed={committed}"
-        )
-        print(
-            f"[BATTLE DEBUG] available={available_fleet}"
-        )
         if not available_fleet:
             await interaction.response.send_message(
                 "No ships are currently available for that house.",
