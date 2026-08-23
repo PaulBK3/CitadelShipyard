@@ -240,184 +240,6 @@ def setup():
     except sqlite3.OperationalError:
         pass
 
-# =========================================================
-# BATTLE FLEETS
-# =========================================================
-
-def add_battle_fleet_entry(
-    battle_id,
-    house,
-    ship_type,
-    amount,
-    commander=None,
-    fleet_id=None
-):
-    cursor.execute("""
-    INSERT INTO battle_fleets(
-        battle_id,
-        house,
-        ship_type,
-        amount,
-        commander,
-        fleet_id
-    )
-    VALUES(?, ?, ?, ?, ?, ?)
-    """, (
-        battle_id,
-        house,
-        ship_type,
-        amount,
-        commander,
-        fleet_id
-    ))
-
-    conn.commit()
-    return cursor.lastrowid
-
-
-def get_battle_fleet(battle_id, house):
-    cursor.execute("""
-    SELECT ship_type, SUM(amount)
-    FROM battle_fleets
-    WHERE battle_id=? AND house=?
-    GROUP BY ship_type
-    """, (
-        battle_id,
-        house
-    ))
-
-    rows = cursor.fetchall()
-
-    return {
-        ship_type: amount
-        for ship_type, amount in rows
-    }
-
-
-def get_all_battle_fleets(battle_id):
-    cursor.execute("""
-    SELECT house, ship_type, amount
-    FROM battle_fleets
-    WHERE battle_id=?
-    """, (battle_id,))
-
-    rows = cursor.fetchall()
-
-    fleets = {}
-
-    for house, ship_type, amount in rows:
-        if house not in fleets:
-            fleets[house] = {}
-
-        fleets[house][ship_type] = (
-            fleets[house].get(ship_type, 0) + amount
-        )
-
-    return fleets
-
-
-def get_battle_fleet_groups(battle_id):
-    cursor.execute("""
-    SELECT house, commander, fleet_id, ship_type, amount
-    FROM battle_fleets
-    WHERE battle_id=?
-    ORDER BY rowid
-    """, (battle_id,))
-
-    rows = cursor.fetchall()
-
-    groups = {}
-
-    for house, commander, fleet_id, ship_type, amount in rows:
-        if not fleet_id:
-            fleet_id = "unknown"
-
-        if fleet_id not in groups:
-            groups[fleet_id] = {
-                "fleet_id": fleet_id,
-                "house": house,
-                "commander": commander,
-                "ships": {},
-            }
-
-        groups[fleet_id]["ships"][ship_type] = (
-            groups[fleet_id]["ships"].get(ship_type, 0)
-            + amount
-        )
-
-    return list(groups.values())
-
-
-def is_battle_fleets_locked(battle_id):
-    cursor.execute(
-        "SELECT fleets_locked FROM battles WHERE id=?",
-        (battle_id,)
-    )
-
-    row = cursor.fetchone()
-
-    return bool(row[0]) if row else False
-
-
-def lock_battle_fleets(battle_id):
-    cursor.execute(
-        "UPDATE battles SET fleets_locked=1 WHERE id=?",
-        (battle_id,)
-    )
-
-    conn.commit()
-
-
-def unlock_battle_fleets(battle_id):
-    cursor.execute(
-        "UPDATE battles SET fleets_locked=0 WHERE id=?",
-        (battle_id,)
-    )
-
-    conn.commit()
-
-
-def delete_battle_fleet(battle_id, fleet_id):
-    """
-    Delete one fleet and return True if any rows were removed.
-    """
-    if fleet_id == "unknown":
-        cursor.execute("""
-        DELETE FROM battle_fleets
-        WHERE battle_id=? AND fleet_id IS NULL
-        """, (battle_id,))
-    else:
-        cursor.execute("""
-        DELETE FROM battle_fleets
-        WHERE battle_id=? AND fleet_id=?
-        """, (
-            battle_id,
-            fleet_id
-        ))
-
-    deleted = cursor.rowcount > 0
-
-    conn.commit()
-
-    return deleted
-
-
-def delete_all_battle_fleets(battle_id):
-    """
-    Delete all fleets for a battle and return the number of
-    deleted database rows.
-    """
-    cursor.execute("""
-    DELETE FROM battle_fleets
-    WHERE battle_id=?
-    """, (battle_id,))
-
-    deleted_count = cursor.rowcount
-
-    conn.commit()
-
-    return deleted_count
-
 
 # =========================================================
 # AVAILABILITY / RESERVATION HELPERS
@@ -1621,13 +1443,16 @@ def delete_battle_fleet(battle_id, fleet_id):
         cursor.execute("DELETE FROM battle_fleets WHERE battle_id=? AND fleet_id IS NULL", (battle_id,))
     else:
         cursor.execute("DELETE FROM battle_fleets WHERE battle_id=? AND fleet_id=?", (battle_id, fleet_id))
+    deleted = cursor.rowcount > 0
     conn.commit()
+    return deleted
 
 
 def delete_all_battle_fleets(battle_id):
     cursor.execute("DELETE FROM battle_fleets WHERE battle_id=?", (battle_id,))
     conn.commit()
-
+    deleted_count = cursor.rowcount
+    return deleted_count
 
 # =========================================================
 # AVAILABILITY / RESERVATION HELPERS

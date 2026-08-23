@@ -1166,126 +1166,157 @@ class CommanderModal(
         )
 
 async def publish_round_result(
-    interaction,
+    bot,
     battle_id,
     result
 ):
-    embed = discord.Embed(
-        title=(
-            f"⚔️ Battle Round "
-            f"{result['round']}"
-        ),
-        color=0x8B0000
+    battle = database.get_battle(battle_id)
+
+    if not battle:
+        return
+
+    # Attacker gets the attacker's private view.
+    attacker_embed = build_round_result_for_side(
+        result,
+        "attacker"
     )
 
-    attacker = result["attacker"]
-    defender = result["defender"]
-
-    embed.add_field(
-        name="Attacker",
-        value=(
-            f"Admiral roll: **{attacker['admiral_dice']}**\n"
-            f"Ship dice: **{attacker['ship_dice']}**\n"
-            f"Damage: **{attacker['damage']:.2f}**\n"
-            f"Ships destroyed: **{attacker['destroyed']}**"
-        ),
-        inline=True
+    # Defender gets the defender's private view.
+    defender_embed = build_round_result_for_side(
+        result,
+        "defender"
     )
 
-    embed.add_field(
-        name="Defender",
-        value=(
-            f"Admiral roll: **{defender['admiral_dice']}**\n"
-            f"Ship dice: **{defender['ship_dice']}**\n"
-            f"Damage: **{defender['damage']:.2f}**\n"
-            f"Ships destroyed: **{defender['destroyed']}**"
-        ),
-        inline=True
+    await send_battle_update(
+        bot,
+        battle["attacker_thread_id"],
+        attacker_embed
     )
 
-    await interaction.channel.send(
-        embed=embed
+    await send_battle_update(
+        bot,
+        battle["defender_thread_id"],
+        defender_embed
+    )
+
+    # Each side also gets its own current fleet state.
+    await publish_current_fleet_state(
+        bot,
+        battle_id,
+        "attacker",
+        result
     )
 
     await publish_current_fleet_state(
-        interaction,
-        battle_id
+        bot,
+        battle_id,
+        "defender",
+        result
     )
 
 
 async def publish_retreat_result(
-    interaction,
+    bot,
     battle_id,
     result
-):
-    embed = discord.Embed(
-        title="🏳️ Retreat",
-        description=(
-            f"**{result['retreating_side'].title()}** "
-            f"has retreated.\n\n"
-            f"**{result['attacking_side'].title()}** "
-            f"received one free attack at half damage."
-        ),
-        color=0xCC8800
-    )
-
-    embed.add_field(
-        name="Free Attack",
-        value=(
-            f"Admiral roll: "
-            f"**{result['admiral_dice']}**\n"
-            f"Ship dice: "
-            f"**{result['ship_dice']}**\n"
-            f"Damage: "
-            f"**{result['damage']:.2f}**\n"
-            f"Ships destroyed: "
-            f"**{result['destroyed']}**"
-        ),
-        inline=False
-    )
-
-    await interaction.channel.send(
-        embed=embed
-    )
-
-    await publish_current_fleet_state(
-        interaction,
-        battle_id
-    )
-
-
-async def publish_current_fleet_state(
-    interaction,
-    battle_id
 ):
     battle = database.get_battle(
         battle_id
     )
 
+    if not battle:
+        return
+
+    retreating_side = result[
+        "retreating_side"
+    ]
+
+    attacking_side = result[
+        "attacking_side"
+    ]
+
+    # The attacking side sees its own
+    # half-damage attack.
+    attacking_embed = build_retreat_result_for_side(
+        result,
+        attacking_side
+    )
+
+    # The retreating side sees the attack
+    # against them, but NOT the enemy's rolls.
+    retreating_embed = build_retreat_result_for_side(
+        result,
+        retreating_side
+    )
+
+    await send_battle_update(
+        bot,
+        battle[
+            f"{attacking_side}_thread_id"
+        ],
+        attacking_embed
+    )
+
+    await send_battle_update(
+        bot,
+        battle[
+            f"{retreating_side}_thread_id"
+        ],
+        retreating_embed
+    )
+
+    await publish_current_fleet_state(
+        bot,
+        battle_id,
+        attacking_side,
+        result=None
+    )
+
+    await publish_current_fleet_state(
+        bot,
+        battle_id,
+        retreating_side,
+        result=result
+    )
+
+
+async def publish_current_fleet_state(
+    bot,
+    battle_id,
+    side,
+    result=None
+):
+    battle = database.get_battle(
+        battle_id
+    )
+
+    if not battle:
+        return
+
     state = battle_engine.get_live_state(
         battle_id
     )
 
+    fleets = battle_engine.get_side_fleets(
+        battle,
+        state,
+        side
+    )
+
     embed = discord.Embed(
-        title="Current Fleet Strength",
+        title="⚓ Your Current Fleet",
         color=0x34495E
     )
 
-    for side in (
-        "attacker",
-        "defender"
-    ):
-        fleets = battle_engine.get_side_fleets(
-            battle,
-            state,
-            side
+    if not fleets:
+        embed.description = (
+            "You have no fleets remaining."
         )
 
-        lines = []
-
+    else:
         for fleet in fleets:
-            combat_count = 0
-            total_count = 0
+
+            lines = []
 
             for ship_type, ship in (
                 fleet["ships"].items()
@@ -1295,40 +1326,236 @@ async def publish_current_fleet_state(
                     int(ship["amount"])
                 )
 
-                total_count += amount
+                if amount <= 0:
+                    continue
 
-                if not battle_engine.is_supply_ship(
+                ship_name = config.SHIPS.get(
+                    ship_type,
+                    {}
+                ).get(
+                    "name",
                     ship_type
-                ):
-                    combat_count += amount
-
-                if amount:
-                    lines.append(
-                        f"{fleet['house']} — "
-                        f"{fleet.get('commander') or 'Unknown'}: "
-                        f"{config.SHIPS.get(ship_type, {}).get('name', ship_type)} "
-                        f"×{amount}"
-                    )
-
-            if combat_count <= 0:
-                lines.append(
-                    f"↳ **No combat ships remaining**"
                 )
 
-        if not lines:
-            lines.append(
-                "*No fleets remaining.*"
+                lines.append(
+                    f"• {ship_name}: **{amount}**"
+                )
+
+            if not lines:
+                lines.append(
+                    "• No ships remaining"
+                )
+
+            commander = (
+                fleet.get("commander")
+                or "Unknown"
             )
 
+            embed.add_field(
+                name=(
+                    f"{fleet['house']} "
+                    f"— {commander}"
+                ),
+                value="\n".join(lines),
+                inline=False
+            )
+
+    # Only reveal enemy losses from this round.
+    if result:
+        enemy_side = (
+            "defender"
+            if side == "attacker"
+            else "attacker"
+        )
+
+        enemy_result = result[
+            enemy_side
+        ]
+
         embed.add_field(
-            name=side.title(),
-            value="\n".join(lines),
+            name="Enemy Losses This Round",
+            value=format_ship_losses(
+                enemy_result[
+                    "destroyed_by_type"
+                ]
+            ),
             inline=False
         )
 
-    await interaction.channel.send(
+    thread_id = (
+        battle["attacker_thread_id"]
+        if side == "attacker"
+        else battle["defender_thread_id"]
+    )
+
+    await send_battle_update(
+        bot,
+        thread_id,
+        embed
+    )
+
+async def send_battle_update(
+    bot,
+    thread_id,
+    embed
+):
+    if not thread_id:
+        return
+
+    channel = bot.get_channel(
+        int(thread_id)
+    )
+
+    if channel is None:
+        try:
+            channel = await bot.fetch_channel(
+                int(thread_id)
+            )
+        except Exception:
+            return
+
+    await channel.send(
         embed=embed
     )
+
+def build_round_result_for_side(
+    result,
+    side
+):
+    own = result[side]
+
+    enemy_side = (
+        "defender"
+        if side == "attacker"
+        else "attacker"
+    )
+
+    enemy = result[enemy_side]
+
+    embed = discord.Embed(
+        title=f"⚔️ Round {result['round']}",
+        color=0x8B0000
+    )
+
+    embed.add_field(
+        name="Your Attack",
+        value=(
+            f"Admiral roll: "
+            f"**{own['admiral_dice']}**\n"
+            f"Ship dice: "
+            f"**{own['ship_dice']}**\n"
+            f"Damage dealt: "
+            f"**{own['damage']:.2f}**"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="Enemy Losses",
+        value=format_ship_losses(
+            enemy["destroyed_by_type"]
+        ),
+        inline=False
+    )
+
+    return embed
+
+def format_ship_losses(
+    destroyed_by_type
+):
+    if not destroyed_by_type:
+        return "• No ships lost"
+
+    lines = []
+
+    for ship_type, amount in destroyed_by_type.items():
+
+        ship_name = config.SHIPS.get(
+            ship_type,
+            {}
+        ).get(
+            "name",
+            ship_type
+        )
+
+        lines.append(
+            f"• **{amount} × {ship_name}**"
+        )
+
+    return "\n".join(lines)
+
+def build_retreat_result_for_side(
+    result,
+    side
+):
+    retreating_side = result[
+        "retreating_side"
+    ]
+
+    attacking_side = result[
+        "attacking_side"
+    ]
+
+    embed = discord.Embed(
+        title="🏳️ Retreat",
+        color=0xCC8800
+    )
+
+    if side == attacking_side:
+
+        embed.description = (
+            "The enemy has retreated. "
+            "Your fleet received one free attack "
+            "at half damage."
+        )
+
+        embed.add_field(
+            name="Your Free Attack",
+            value=(
+                f"Admiral roll: "
+                f"**{result['admiral_dice']}**\n"
+                f"Ship dice: "
+                f"**{result['ship_dice']}**\n"
+                f"Half damage: "
+                f"**{result['damage']:.2f}**"
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="Enemy Losses",
+            value=format_ship_losses(
+                result["destroyed_by_type"]
+            ),
+            inline=False
+        )
+
+    else:
+
+        embed.description = (
+            "Your fleet has retreated. "
+            "The enemy received one free attack "
+            "at half damage."
+        )
+
+        embed.add_field(
+            name="Your Losses",
+            value=format_ship_losses(
+                result["destroyed_by_type"]
+            ),
+            inline=False
+        )
+
+        embed.add_field(
+            name="Enemy Attack",
+            value=(
+                "The enemy's attack was resolved, "
+                "but its rolls and damage are hidden."
+            ),
+            inline=False
+        )
+
+    return embed
 
 class BattleCombatView(discord.ui.View):
 
@@ -1403,7 +1630,7 @@ class BattleCombatView(discord.ui.View):
             return
 
         await publish_round_result(
-            interaction,
+            self.bot,
             self.battle_id,
             result
         )
@@ -1550,7 +1777,7 @@ class BattleCombatView(discord.ui.View):
         )
 
         await publish_retreat_result(
-            interaction,
+            self.bot,
             self.battle_id,
             result
         )
