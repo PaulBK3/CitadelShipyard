@@ -173,13 +173,8 @@ class StaffCog(commands.Cog):
 
         await interaction.followup.send(msg, ephemeral=True)
 
-    @staff.command(
-    name="ships_region",
-    description="Show all ships belonging to houses in a region"
-    )
-    @app_commands.describe(
-        region="Region to inspect"
-    )
+    @staff.command(name="regional_fleet",description="Show all ships belonging to houses in a region")
+    @app_commands.describe(region="Region to inspect")
     @app_commands.autocomplete(
         region=utils.region_autocomplete
     )
