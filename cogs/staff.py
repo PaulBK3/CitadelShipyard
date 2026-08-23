@@ -258,21 +258,23 @@ class StaffCog(commands.Cog):
 
     @staff.command(name="maintenance", description="Calculate a house fleet maintenance")
     @app_commands.autocomplete(house=utils.house_autocomplete)
-    async def maintenance(self, interaction: discord.Interaction, house: str):
+    @app_commands.describe(time="how many years passed")
+    async def maintenance(self, interaction: discord.Interaction, house: str, time: int):
         await interaction.response.defer(ephemeral=True)
         
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
             return
 
-        total = utils.calculate_house_maintenance(house)
+        total = utils.calculate_house_maintenance(house, time)
         await interaction.followup.send(
-            f"**{house}** weekly fleet maintenance: **{total} gold**",
+            f"**{house}** Fleet Maintenance for {time} years: **{total} gold**",
             ephemeral=True
         )
 
     @staff.command(name="maintenance_all", description="Calculate maintenance for all known houses")
-    async def maintenance_all(self, interaction: discord.Interaction):
+    @app_commands.describe(time="how many years passed")
+    async def maintenance_all(self, interaction: discord.Interaction, time: int):
         await interaction.response.defer(ephemeral=False)
         
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
@@ -287,7 +289,7 @@ class StaffCog(commands.Cog):
 
         msg = "**Weekly Fleet Maintenance**\n"
         for house_name in houses:
-            total = utils.calculate_house_maintenance(house_name)
+            total = utils.calculate_house_maintenance(house_name, time)
             msg += f"- {house_name}: {total} gold\n"
 
         await interaction.followup.send(msg, ephemeral=False)

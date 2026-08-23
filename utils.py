@@ -15,14 +15,14 @@ def get_house(member: discord.Member):
     return None
 
 
-def calculate_house_maintenance(house_name):
+def calculate_house_maintenance(house_name, time):
     fleet = database.get_fleet_for_house(house_name)
     total = 0
 
     for ship_type, amount in fleet.items():
         ship_data = config.SHIPS.get(ship_type)
         if ship_data:
-            total += ship_data.get("maintenance", 0) * amount
+            total += (ship_data.get("maintenance", 0) * amount)/10*time
 
     return total
 
