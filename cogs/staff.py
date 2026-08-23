@@ -62,9 +62,10 @@ class StaffCog(commands.Cog):
         interaction: discord.Interaction,
         house: str,
         duchy: str,
+        region: str,
         culture: app_commands.Choice[str] | None = None,
         port_level: app_commands.Range[int, 0, 10] | None = None,
-        region: app_commands.Choice[str] | None = None
+
     ):
         await interaction.response.defer(ephemeral=True)
         
@@ -72,7 +73,7 @@ class StaffCog(commands.Cog):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
             return
 
-        database.upsert_house(house, duchy, culture.value if culture else None, port_level, region.value if region else None)
+        database.upsert_house(house, duchy, culture.value if culture else None, port_level, region)
 
         await interaction.followup.send(
             f"Updated house profile:\n"
@@ -99,15 +100,15 @@ class StaffCog(commands.Cog):
 
     @staff.command(name="set_region", description="Set a house region")
     @app_commands.autocomplete(house=utils.house_autocomplete, region=utils.region_autocomplete)
-    async def set_region(self, interaction: discord.Interaction, house: str, region: app_commands.Choice[str]):
+    async def set_region(self, interaction: discord.Interaction, house: str, region: str):
         await interaction.response.defer(ephemeral=True)
         
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
             return
 
-        database.set_house_region(house, region.value)
-        await interaction.followup.send(f"Set **{house}** region to **{region.value}**.", ephemeral=True)
+        database.set_house_region(house, region)
+        await interaction.followup.send(f"Set **{house}** region to **{region}**.", ephemeral=True)
 
     @staff.command(name="set_port_level", description="Set a house port level")
     @app_commands.autocomplete(house=utils.house_autocomplete)
