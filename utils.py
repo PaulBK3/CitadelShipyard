@@ -37,23 +37,22 @@ SHIP_CHOICES = [
     for key, data in config.SHIPS.items()
 ]
 
-async def region_autocomplete(
-    interaction: discord.Interaction,
-    current: str
-):
-    regions = database.get_all_regions()
+async def region_autocomplete(interaction: discord.Interaction,current: str):
+    try:
+        regions = database.get_all_regions()
 
-    current = current.lower()
+        current = current.lower()
 
-    return [
-        app_commands.Choice(
-            name=region,
-            value=region
-        )
-        for region in regions
-        if current in region.lower()
-    ][:25]
-
+        return [
+            app_commands.Choice(
+                name=region,
+                value=region
+            )
+            for region in regions
+            if current in region.lower()
+        ][:25]
+    except Exception:
+        return []
 
 def get_house_choices(limit: int = 25):
     """Return up to `limit` app_commands.Choice entries for known houses from the database."""
