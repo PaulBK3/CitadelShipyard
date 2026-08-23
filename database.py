@@ -862,19 +862,20 @@ def search_houses(prefix: str, limit: int = 25):
     cursor.execute("SELECT house_name FROM houses WHERE house_name LIKE ? COLLATE NOCASE ORDER BY house_name LIMIT ?", (like, limit))
     return [row[0] for row in cursor.fetchall()]
 
-def get_all_regions():
+def get_all_regions(search="", limit=25):
+    search = (search or "").strip()
+
     cursor.execute("""
         SELECT DISTINCT region
         FROM houses
         WHERE region IS NOT NULL
           AND region != ''
+          AND LOWER(region) LIKE LOWER(?)
         ORDER BY region
-    """)
+        LIMIT ?
+    """, (f"%{search}%", limit))
 
-    return [
-        row[0]
-        for row in cursor.fetchall()
-    ]
+    return [row[0] for row in cursor.fetchall()]
 # =========================================================
 # BATTLES
 # =========================================================

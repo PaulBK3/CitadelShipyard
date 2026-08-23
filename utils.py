@@ -52,12 +52,6 @@ async def region_autocomplete(interaction: discord.Interaction,current: str):
     except Exception:
         return []
 
-def get_house_choices(limit: int = 25):
-    """Return up to `limit` app_commands.Choice entries for known houses from the database."""
-    houses = database.get_all_houses()
-    return [app_commands.Choice(name=h, value=h) for h in houses[:limit]]
-
-
 async def house_autocomplete(interaction: discord.Interaction, current: str):
     """Autocomplete provider: returns database-backed house names matching the current input."""
     try:
