@@ -287,7 +287,7 @@ class StaffCog(commands.Cog):
             await interaction.followup.send("No houses found in database.", ephemeral=True)
             return
 
-        msg = "**Weekly Fleet Maintenance**\n"
+        msg = f"**Weekly Fleet Maintenance for {time} years**\n"
         for house_name in houses:
             total = utils.calculate_house_maintenance(house_name, time)
             msg += f"- {house_name}: {total} gold\n"
