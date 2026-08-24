@@ -409,7 +409,7 @@ class BattleFleetView(discord.ui.View):
 
         await interaction.response.send_message(
             "Battle started. **Round 1 is ready to begin.**",
-            ephemeral=True
+            ephemeral=False
         )
 
         await refresh_battle_message(

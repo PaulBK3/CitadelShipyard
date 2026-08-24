@@ -417,7 +417,7 @@ def submit_battle_fleet(
                 supply_ship_count += amount
             else:
                 normal_ship_count += amount
-
+        '''
         # Minimum of 20 ships excluding supply ships.
         if normal_ship_count < 20:
             conn.execute("ROLLBACK")
@@ -430,7 +430,7 @@ def submit_battle_fleet(
                     f"This fleet only has **{normal_ship_count}**."
                 )
             }
-
+        '''
         supply_slots = supply_ship_count // 5
 
         fleet_size = normal_ship_count + supply_slots
