@@ -32,7 +32,8 @@ class PlayerCog(commands.Cog):
         await interaction.response.send_message(msg, ephemeral=True)
 
     @app_commands.command(name="my_fleet", description="View your house fleet")
-    async def my_fleet(self, interaction: discord.Interaction):
+    @app_commands.describe(time="Time in years to pay maintenance for")
+    async def my_fleet(self, interaction: discord.Interaction, time: int):
         house = utils.get_house(interaction.user)
         if not house:
             await interaction.response.send_message("No valid house role found.", ephemeral=True)
@@ -48,26 +49,10 @@ class PlayerCog(commands.Cog):
             ship_name = config.SHIPS.get(ship_type, {}).get("name", ship_type)
             msg += f"- {ship_name}: {amount}\n"
 
-        total = utils.calculate_house_maintenance(house)
-        msg += f"\nWeekly Maintenance: **{total} gold**"
+        total = utils.calculate_house_maintenance(house, time)
+        msg += f"\nWeekly Maintenance for {time} years: **{total} gold**"
 
         await interaction.response.send_message(msg, ephemeral=True)
-
-    @app_commands.command(name="maintenance", description="Calculate your houses fleet maintenance")
-    @app_commands.describe(time="how many years passed")
-    async def maintenance(self, interaction: discord.Interaction, time: int):
-        await interaction.response.defer(ephemeral=True)
-        
-        house = utils.get_house(interaction.user)
-        if not house:
-            await interaction.response.send_message("No valid house role found.", ephemeral=True)
-            return
-
-        total = utils.calculate_house_maintenance(house, time)
-        await interaction.followup.send(
-            f"**{house}** Fleet Maintenance for {time} years: **{total} gold**",
-            ephemeral=True
-        )
 
 async def setup(bot):
     await bot.add_cog(PlayerCog(bot), guild=discord.Object(id=config.GUILD_ID))
