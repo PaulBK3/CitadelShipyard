@@ -18,7 +18,7 @@ async def ship_log_channel(guild):
 
 async def port_log_channel(guild):
     for channel in guild.text_channels:
-        if channel.name == config.PORT_LOG_CHANNEL:
+        if channel.name == config.SHIP_LOG_CHANNEL:
             return channel
     return None
 
@@ -95,7 +95,7 @@ class ShipsCog(commands.Cog):
     async def request_port_upgrade(
         self,
         interaction: discord.Interaction,
-        requested_level: app_commands.Range[int, 1, 10],
+        requested_level: app_commands.Range[int, 5, 1000],
         highest_level: app_commands.Range[int, 1, 10] | None = 1,
         comment: str | None = None
     ):
