@@ -135,7 +135,7 @@ class StaffCog(commands.Cog):
         interaction: discord.Interaction,
         house: str,
         ship_type: app_commands.Choice[str],
-        amount: app_commands.Range[int, 1, 1000]
+        amount: app_commands.Range[int, -1000, 1000]
     ):
         await interaction.response.defer(ephemeral=True)
 
