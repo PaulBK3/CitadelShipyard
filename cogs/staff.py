@@ -137,7 +137,7 @@ class StaffCog(commands.Cog):
         ship_type: app_commands.Choice[str],
         amount: app_commands.Range[int, -1000, 1000]
     ):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=False)
 
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
@@ -149,7 +149,7 @@ class StaffCog(commands.Cog):
         ship_name = config.SHIPS.get(ship_type.value, {}).get("name", ship_type.value)
         await interaction.followup.send(
             f"Added **{amount}x {ship_name}** to **{house}**.",
-            ephemeral=True
+            ephemeral=False
         )
 
     @staff.command(name="fleet", description="View a house fleet")
