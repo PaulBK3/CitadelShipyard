@@ -1360,39 +1360,29 @@ async def publish_current_fleet_state(
                 inline=False
             )
 
-    # Only reveal enemy losses from this round.
+    # Show losses suffered by your side this round.
     if result:
-        enemy_side = (
-            "defender"
-            if side == "attacker"
-            else "attacker"
-        )
-
-        enemy_result = result[
-            enemy_side
-        ]
+        own_result = result[side]
 
         embed.add_field(
-            name="Enemy Losses This Round",
+            name="Your Losses This Round",
             value=format_ship_losses(
-                enemy_result[
-                    "destroyed_by_type"
-                ]
+                own_result["destroyed_by_type"]
             ),
             inline=False
         )
 
-    thread_id = (
-        battle["attacker_thread_id"]
-        if side == "attacker"
-        else battle["defender_thread_id"]
-    )
+        thread_id = (
+            battle["attacker_thread_id"]
+            if side == "attacker"
+            else battle["defender_thread_id"]
+        )
 
-    await send_battle_update(
-        bot,
-        thread_id,
-        embed
-    )
+        await send_battle_update(
+            bot,
+            thread_id,
+            embed
+        )
 
 async def send_battle_update(
     bot,
@@ -1424,14 +1414,6 @@ def build_round_result_for_side(
 ):
     own = result[side]
 
-    enemy_side = (
-        "defender"
-        if side == "attacker"
-        else "attacker"
-    )
-
-    enemy = result[enemy_side]
-
     embed = discord.Embed(
         title=f"⚔️ Round {result['round']}",
         color=0x8B0000
@@ -1453,7 +1435,7 @@ def build_round_result_for_side(
     embed.add_field(
         name="Enemy Losses",
         value=format_ship_losses(
-            enemy["destroyed_by_type"]
+            own["destroyed_by_type"]
         ),
         inline=False
     )
