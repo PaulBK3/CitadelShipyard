@@ -89,14 +89,14 @@ class ShipsCog(commands.Cog):
     @app_commands.command(name="request_port_upgrade", description="Request a port level upgrade")
     @app_commands.describe(
         requested_level="Sum of new port capacity",
-        highest_port_level="Highest port level available",
+        highest_level="Highest port level available",
         comment="Optional note for staff"
     )
     async def request_port_upgrade(
         self,
         interaction: discord.Interaction,
         requested_level: app_commands.Range[int, 1, 10],
-        highest_port_level: app_commands.Range[int, 1, 10],
+        highest_level: app_commands.Range[int, 1, 10] | None = 1,
         comment: str | None = None
     ):
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
@@ -108,13 +108,6 @@ class ShipsCog(commands.Cog):
             await interaction.response.send_message("No valid house role found.", ephemeral=True)
             return
 
-        if requested_level > highest_port_level:
-            await interaction.response.send_message(
-                "The requested port level cannot exceed the highest port level.",
-                ephemeral=True,
-            )
-            return
-
         log = await port_log_channel(interaction.guild)
         if not log:
             await interaction.response.send_message("Port request channel not found.", ephemeral=True)
@@ -124,7 +117,7 @@ class ShipsCog(commands.Cog):
             interaction.user.id,
             house,
             requested_level,
-            highest_port_level,
+            highest_level,
             comment
         )
 
@@ -135,8 +128,7 @@ class ShipsCog(commands.Cog):
         embed.add_field(name="Player", value=interaction.user.mention, inline=True)
         embed.add_field(name="House", value=house, inline=True)
         embed.add_field(name="Requested Level", value=str(requested_level), inline=True)
-        embed.add_field(name="Highest Port Level", value=str(highest_port_level), inline=True)
-
+        embed.add_field(name="Highest Level", value=str(highest_level), inline=True)
         if comment:
             embed.add_field(name="Player Comment", value=comment, inline=False)
 
