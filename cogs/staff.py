@@ -55,6 +55,7 @@ class StaffCog(commands.Cog):
         duchy="Duchy name",
         culture="Culture name",
         port_level="Current port level",
+        highest_port_level="Highest port level",
         region="Region name"
     )
     async def set_house_profile(
@@ -65,6 +66,7 @@ class StaffCog(commands.Cog):
         region: str,
         culture: app_commands.Choice[str] | None = None,
         port_level: app_commands.Range[int, 0, 10] | None = None,
+        highest_port_level: app_commands.Range[int, 0, 10] | None = None
 
     ):
         await interaction.response.defer(ephemeral=True)
@@ -73,15 +75,35 @@ class StaffCog(commands.Cog):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
             return
 
-        database.upsert_house(house, duchy, culture.value if culture else None, port_level, region)
+        if (
+            port_level is not None
+            and highest_port_level is not None
+            and port_level > highest_port_level
+        ):
+            await interaction.followup.send(
+                "The current port level cannot exceed the highest port level.",
+                ephemeral=True,
+            )
+            return
+
+        culture_name = culture.value if culture else None
+        database.upsert_house(
+            house,
+            duchy,
+            culture_name,
+            port_level,
+            highest_port_level,
+            region,
+        )
 
         await interaction.followup.send(
             f"Updated house profile:\n"
             f"**{house}**\n"
             f"Duchy: {duchy}\n"
-            f"Culture: {culture.value}\n"
+            f"Culture: {culture_name}\n"
             f"Port Level: {port_level}\n"
-            f"Region: {region.value}",
+            f"Highest Port Level: {highest_port_level}\n"
+            f"Region: {region}",
             ephemeral=True
         )
 
@@ -112,15 +134,35 @@ class StaffCog(commands.Cog):
 
     @staff.command(name="set_port_level", description="Set a house port level")
     @app_commands.autocomplete(house=utils.house_autocomplete)
-    async def set_port_level(self, interaction: discord.Interaction, house: str, port_level: app_commands.Range[int, 0, 10]):
+    @app_commands.describe(
+        port_level="Current port level",
+        highest_port_level="Highest port level",
+    )
+    async def set_port_level(
+        self,
+        interaction: discord.Interaction,
+        house: str,
+        port_level: app_commands.Range[int, 0, 10],
+        highest_port_level: app_commands.Range[int, 0, 10] | None = None,
+    ):
         await interaction.response.defer(ephemeral=True)
         
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
             return
 
-        database.set_house_port_level(house, port_level)
-        await interaction.followup.send(f"Set **{house}** port level to **{port_level}**.", ephemeral=True)
+        if highest_port_level is not None and port_level > highest_port_level:
+            await interaction.followup.send(
+                "The current port level cannot exceed the highest port level.",
+                ephemeral=True,
+            )
+            return
+
+        database.set_house_port_level(house, port_level, highest_port_level)
+        message = f"Set **{house}** port level to **{port_level}**."
+        if highest_port_level is not None:
+            message += f" Highest port level: **{highest_port_level}**."
+        await interaction.followup.send(message, ephemeral=True)
 
     @staff.command(name="add_ships", description="Add ships directly to a house fleet")
     @app_commands.choices(ship_type=utils.SHIP_CHOICES)

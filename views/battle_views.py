@@ -1025,7 +1025,7 @@ class ShipQuantityModal(discord.ui.Modal):
         self.amount = discord.ui.TextInput(
             label=f"{ship_name} amount",
             placeholder=f"Enter 0-{max_amount}",
-            default=str(current_amount),
+            default=str(current_amount) if current_amount > 0 else None,
             required=True,
             max_length=10
         )

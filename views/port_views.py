@@ -47,6 +47,11 @@ class DenyPortReasonModal(discord.ui.Modal, title="Deny Port Upgrade"):
         new_embed.add_field(name="Player", value=f"<@{request['user_id']}>", inline=True)
         new_embed.add_field(name="House", value=request["house"], inline=True)
         new_embed.add_field(name="Requested Level", value=str(request["requested_level"]), inline=True)
+        new_embed.add_field(
+            name="Highest Port Level",
+            value=str(request["highest_port_level"]),
+            inline=True,
+        )
         new_embed.add_field(name="Reason", value=str(self.reason), inline=False)
 
         if request["comment"]:
@@ -93,7 +98,11 @@ class PortRequestView(discord.ui.View):
             return
 
         database.update_port_request_status(request_id, "approved", interaction.user.name)
-        database.set_house_port_level(request["house"], request["requested_level"])
+        database.set_house_port_level(
+            request["house"],
+            request["requested_level"],
+            request["highest_port_level"],
+        )
 
         new_embed = discord.Embed(
             title="Port Upgrade Approved",
@@ -101,6 +110,11 @@ class PortRequestView(discord.ui.View):
         )
         new_embed.add_field(name="Player", value=f"<@{request['user_id']}>", inline=True)
         new_embed.add_field(name="House", value=request["house"], inline=True)
+        new_embed.add_field(
+            name="Highest Port Level",
+            value=str(request["highest_port_level"]),
+            inline=True,
+        )
         new_embed.add_field(name="Approved By", value=interaction.user.mention, inline=True)
 
         if request["comment"]:
@@ -114,7 +128,8 @@ class PortRequestView(discord.ui.View):
             self.bot,
             request["user_id"],
             f"Your port upgrade request for **{request['house']}** was approved.\n"
-            f"New Port Level: {request['requested_level']}"
+            f"New Port Level: {request['requested_level']}\n"
+            f"Highest Port Level: {request['highest_port_level']}"
         )
 
     @discord.ui.button(label="Deny", style=discord.ButtonStyle.red, custom_id="port_request_deny")

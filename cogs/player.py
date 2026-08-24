@@ -26,7 +26,8 @@ class PlayerCog(commands.Cog):
             f"**{house} Naval Profile**\n"
             f"Duchy: {house_data['duchy']}\n"
             f"Culture: {house_data['culture']}\n"
-            f"Port Level: {house_data['port_level']}"
+            f"Port Level: {house_data['port_level']}\n"
+            f"Highest Port Level: {house_data['highest_port_level']}"
         )
 
         await interaction.response.send_message(msg, ephemeral=True)

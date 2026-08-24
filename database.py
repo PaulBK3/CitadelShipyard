@@ -44,10 +44,16 @@ def setup():
         duchy TEXT,
         culture TEXT,
         port_level INTEGER NOT NULL DEFAULT 0,
+        highest_port_level INTEGER NOT NULL DEFAULT 0,
         region TEXT
     )
     """)
-
+    # Add highest port lvl column to houses
+    try:
+        cursor.execute("ALTER TABLE houses ADD COLUMN highest_port_level INTEGER NOT NULL DEFAULT 0")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
     # Add missing region column if it doesn't exist
     try:
         cursor.execute("ALTER TABLE houses ADD COLUMN region TEXT")
@@ -85,6 +91,7 @@ def setup():
         user_id INTEGER NOT NULL,
         house TEXT NOT NULL,
         requested_level INTEGER NOT NULL,
+        highest_port_level INTEGER NOT NULL DEFAULT 0,
         status TEXT NOT NULL DEFAULT 'pending',
         staff_name TEXT,
         deny_reason TEXT,
@@ -92,6 +99,12 @@ def setup():
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
     """)
+
+    try:
+        cursor.execute("ALTER TABLE port_upgrade_requests ADD COLUMN highest_port_level INTEGER")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass
 
     # ----------------------------
     # Battles
@@ -623,17 +636,33 @@ def mark_ship_request_added_to_ledger(request_id):
 # HOUSE PROFILES
 # =========================================================
 
-def upsert_house(house_name, duchy=None, culture=None, port_level=0, region=None):
+def upsert_house(house_name, duchy=None, culture=None, port_level=None, highest_port_level=None, region=None):
+    current = get_house(house_name)
+    if current:
+        duchy = duchy if duchy is not None else current["duchy"]
+        culture = culture if culture is not None else current["culture"]
+        port_level = port_level if port_level is not None else current["port_level"]
+        highest_port_level = (
+            highest_port_level
+            if highest_port_level is not None
+            else current["highest_port_level"]
+        )
+        region = region if region is not None else current["region"]
+    else:
+        port_level = 0 if port_level is None else port_level
+        highest_port_level = 0 if highest_port_level is None else highest_port_level
+
     cursor.execute("""
-    INSERT INTO houses(house_name, duchy, culture, port_level, region)
-    VALUES(?, ?, ?, ?, ?)
+    INSERT INTO houses(house_name, duchy, culture, port_level, region, highest_port_level)
+    VALUES(?, ?, ?, ?, ?, ?)
     ON CONFLICT(house_name)
     DO UPDATE SET
         duchy=excluded.duchy,
         culture=excluded.culture,
         port_level=excluded.port_level,
+        highest_port_level=excluded.highest_port_level,
         region=excluded.region
-    """, (house_name, duchy, culture, port_level, region))
+    """, (house_name, duchy, culture, port_level, region, highest_port_level))
     conn.commit()
 
 
@@ -662,7 +691,7 @@ def ensure_house_exists(house_name):
 
 def get_house(house_name):
     cursor.execute("""
-    SELECT house_name, duchy, culture, port_level, region
+    SELECT house_name, duchy, culture, port_level, region, highest_port_level
     FROM houses
     WHERE house_name=?
     """, (house_name,))
@@ -676,6 +705,7 @@ def get_house(house_name):
         "culture": row[2],
         "port_level": row[3],
         "region": row[4],
+        "highest_port_level": row[5]
     }
 
 
@@ -695,12 +725,20 @@ def set_house_region(house_name, region):
         cursor.execute("INSERT INTO houses(house_name, region, port_level) VALUES(?, ?, 0)", (house_name, region))
     conn.commit()
 
-def set_house_port_level(house_name, port_level):
+def set_house_port_level(house_name, port_level, highest_port_level=None):
     house = get_house(house_name)
+    highest_port_level = (
+        highest_port_level
+        if highest_port_level is not None
+        else (house["highest_port_level"] if house else 0)
+    )
     if house:
-        cursor.execute("UPDATE houses SET port_level=? WHERE house_name=?", (port_level, house_name))
+        cursor.execute(
+            "UPDATE houses SET port_level=?, highest_port_level=? WHERE house_name=?",
+            (port_level, highest_port_level, house_name),
+        )
     else:
-        cursor.execute("INSERT INTO houses(house_name, port_level) VALUES(?, ?)", (house_name, port_level))
+        cursor.execute("INSERT INTO houses(house_name, port_level, highest_port_level) VALUES(?, ?, ?)", (house_name, port_level, highest_port_level))
     conn.commit()
 
 
@@ -710,11 +748,29 @@ def set_house_port_level(house_name, port_level):
 
 def add_fleet_entry(house, ship_type, amount):
     cursor.execute("""
-    INSERT INTO fleet_ledger(house, ship_type, amount)
-    VALUES(?, ?, ?)
-    """, (house, ship_type, amount))
+    SELECT id
+    FROM fleet_ledger
+    WHERE house=? AND ship_type=?
+    ORDER BY id
+    LIMIT 1
+    """, (house, ship_type))
+    row = cursor.fetchone()
+
+    if row:
+        entry_id = row[0]
+        cursor.execute(
+            "UPDATE fleet_ledger SET amount=amount + ? WHERE id=?",
+            (amount, entry_id),
+        )
+    else:
+        cursor.execute("""
+        INSERT INTO fleet_ledger(house, ship_type, amount)
+        VALUES(?, ?, ?)
+        """, (house, ship_type, amount))
+        entry_id = cursor.lastrowid
+
     conn.commit()
-    return cursor.lastrowid
+    return entry_id
 
 
 def get_fleet_for_house(house):
@@ -726,14 +782,6 @@ def get_fleet_for_house(house):
     """, (house,))
     rows = cursor.fetchall()
     return {ship_type: amount for ship_type, amount in rows}
-
-
-def remove_fleet_entry(house, ship_type, amount):
-    cursor.execute("""
-    INSERT INTO fleet_ledger(house, ship_type, amount)
-    VALUES(?, ?, ?)
-    """, (house, ship_type, -amount))
-    conn.commit()
 
 def get_ships_by_region(region):
     cursor.execute("""
@@ -763,18 +811,18 @@ def get_ships_by_region(region):
 # PORT REQUESTS
 # =========================================================
 
-def create_port_request(user_id, house, requested_level, comment=None):
+def create_port_request(user_id, house, requested_level, highest_port_level, comment=None):
     cursor.execute("""
-    INSERT INTO port_upgrade_requests(user_id, house, requested_level, comment)
-    VALUES(?, ?, ?, ?)
-    """, (user_id, house, requested_level, comment))
+    INSERT INTO port_upgrade_requests(user_id, house, requested_level, highest_port_level, comment)
+    VALUES(?, ?, ?, ?, ?)
+    """, (user_id, house, requested_level, highest_port_level, comment))
     conn.commit()
     return cursor.lastrowid
 
 
 def get_port_request(request_id):
     cursor.execute("""
-    SELECT id, user_id, house, requested_level, status, staff_name, deny_reason, comment
+    SELECT id, user_id, house, requested_level, highest_port_level, status, staff_name, deny_reason, comment
     FROM port_upgrade_requests
     WHERE id=?
     """, (request_id,))
@@ -787,10 +835,11 @@ def get_port_request(request_id):
         "user_id": row[1],
         "house": row[2],
         "requested_level": row[3],
-        "status": row[4],
-        "staff_name": row[5],
-        "deny_reason": row[6],
-        "comment": row[7],
+        "highest_port_level": row[4],
+        "status": row[5],
+        "staff_name": row[6],
+        "deny_reason": row[7],
+        "comment": row[8],
     }
 
 
