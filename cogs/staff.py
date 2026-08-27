@@ -420,11 +420,26 @@ class StaffCog(commands.Cog):
                 f"{travel_team_mention} A new naval battle has been created.",
                 allowed_mentions=discord.AllowedMentions(roles=True),
             )
-
+        house_role_atk = discord.utils.get(interaction.guild.roles, name=attacker) if interaction.guild else None
+        house_mention_atk = house_role_atk.mention if house_role_atk else f"**{attacker}**"
+        await thread_attacker.send(
+            f"Assigned {house_mention_atk} to Attacker for battle {battle_id}.",
+            allowed_mentions=discord.AllowedMentions(roles=True),
+        )
+        house_role_def = discord.utils.get(interaction.guild.roles, name=defender) if interaction.guild else None
+        house_mention_def = house_role_def.mention if house_role_def else f"**{defender}**"
+        await thread_defender.send(
+            f"Assigned {house_mention_def} to Defender for battle {battle_id}.",
+            allowed_mentions=discord.AllowedMentions(roles=True),
+        )
         await interaction.followup.send(f"Battle '{name}' created! Threads: {thread_attacker.mention}, {thread_defender.mention}", ephemeral=False)
 
     @staff.command(name="assign_house", description="Assign a house to an attacker or defender side")
     @app_commands.autocomplete(house=utils.house_autocomplete)
+    @app_commands.choices(side=[
+        app_commands.Choice(name="Attacker", value="attacker"), 
+        app_commands.Choice(name="Defender", value="defender")
+    ])
     @app_commands.describe(
         battle_id="Battle ID",
         side="Which side: attacker or defender",
@@ -442,7 +457,12 @@ class StaffCog(commands.Cog):
             return
 
         database.assign_house_to_side(battle_id, side_norm, house)
-        await interaction.followup.send(f"Assigned **{house}** to **{side_norm}** for battle {battle_id}.", ephemeral=False)
+        house_role = discord.utils.get(interaction.guild.roles, name=house) if interaction.guild else None
+        house_mention = house_role.mention if house_role else f"**{house}**"
+        await interaction.followup.send(
+            f"Assigned {house_mention} to **{side_norm}** for battle {battle_id}.",
+            allowed_mentions=discord.AllowedMentions(roles=True),
+        )
 
     @staff.command(name="remove_house", description="Remove a house from a battle side")
     @app_commands.autocomplete(house=utils.house_autocomplete)
