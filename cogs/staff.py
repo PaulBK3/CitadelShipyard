@@ -406,8 +406,10 @@ class StaffCog(commands.Cog):
         )
         embed_defender.set_footer(text=f"Battle ID: {battle_id}")
 
-        await thread_attacker.send(embed=embed_attacker, view=view)
-        await thread_defender.send(embed=embed_defender, view=view)
+        attacker_message = await thread_attacker.send(embed=embed_attacker, view=view)
+        defender_message = await thread_defender.send(embed=embed_defender, view=view)
+        await attacker_message.pin()
+        await defender_message.pin()
 
         travel_team_role = discord.utils.get(guild.roles, name=config.SHIP_TEAM_ROLE)
         if travel_team_role:
