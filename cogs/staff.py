@@ -345,7 +345,7 @@ class StaffCog(commands.Cog):
         culture_modifier="Optional culture modifier for the battle"
     )
     async def create_battle(self, interaction: discord.Interaction, name: str, attacker: str, defender: str, culture_modifier: str | None = None):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=False)
         
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
@@ -372,12 +372,12 @@ class StaffCog(commands.Cog):
         # Create threads
         thread_attacker = await battle_channel.create_thread(
             name=f"Battle: {name} {attacker} side",
-            type=discord.ChannelType.public_thread
+            type=discord.ChannelType.private_thread
         )
 
         thread_defender = await battle_channel.create_thread(
             name=f"Battle: {name} {defender} side",
-            type=discord.ChannelType.public_thread
+            type=discord.ChannelType.private_thread
         )
         # Update battle with side-specific thread ids
         database.update_battle_threads(battle_id, thread_attacker.id, thread_defender.id)
@@ -409,7 +409,7 @@ class StaffCog(commands.Cog):
         await thread_attacker.send(embed=embed_attacker, view=view)
         await thread_defender.send(embed=embed_defender, view=view)
 
-        await interaction.followup.send(f"Battle '{name}' created! Threads: {thread_attacker.mention}, {thread_defender.mention}", ephemeral=True)
+        await interaction.followup.send(f"Battle '{name}' created! Threads: {thread_attacker.mention}, {thread_defender.mention}", ephemeral=False)
 
     @staff.command(name="assign_house", description="Assign a house to an attacker or defender side")
     @app_commands.autocomplete(house=utils.house_autocomplete)

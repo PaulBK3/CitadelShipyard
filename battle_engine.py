@@ -415,10 +415,10 @@ def roll_fleet_damage(
 
     raw = (
         admiral_dice + ship_dice
-    ) / total_ships
+    )
 
     damage = (
-        raw * FINAL_DAMAGE_MULTIPLIER
+        raw
     )
 
     if half_damage:
