@@ -450,8 +450,13 @@ class StaffCog(commands.Cog):
             await interaction.followup.send("Side must be 'attacker' or 'defender'.", ephemeral=True)
             return
 
-        database.remove_house_from_side(battle_id, side_norm, house)
-        await interaction.followup.send(f"Removed **{house}** from **{side_norm}** for battle {battle_id}.", ephemeral=True)
+        database.assign_house_to_side(battle_id, side_norm, house)
+        house_role = discord.utils.get(interaction.guild.roles, name=house) if interaction.guild else None
+        house_mention = house_role.mention if house_role else f"**{house}**"
+        await interaction.followup.send(
+            f"Assigned {house_mention} to **{side_norm}** for battle {battle_id}.",
+            allowed_mentions=discord.AllowedMentions(roles=True),
+        )
 
     @staff.command(name="sync_houses", description="Sync house roles from the guild into the database")
     async def sync_houses(self, interaction: discord.Interaction):
