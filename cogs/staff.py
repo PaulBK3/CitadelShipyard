@@ -409,6 +409,18 @@ class StaffCog(commands.Cog):
         await thread_attacker.send(embed=embed_attacker, view=view)
         await thread_defender.send(embed=embed_defender, view=view)
 
+        travel_team_role = discord.utils.get(guild.roles, name=config.SHIP_TEAM_ROLE)
+        if travel_team_role:
+            travel_team_mention = travel_team_role.mention
+            await thread_attacker.send(
+                f"{travel_team_mention} A new naval battle has been created.",
+                allowed_mentions=discord.AllowedMentions(roles=True),
+            )
+            await thread_defender.send(
+                f"{travel_team_mention} A new naval battle has been created.",
+                allowed_mentions=discord.AllowedMentions(roles=True),
+            )
+
         await interaction.followup.send(f"Battle '{name}' created! Threads: {thread_attacker.mention}, {thread_defender.mention}", ephemeral=False)
 
     @staff.command(name="assign_house", description="Assign a house to an attacker or defender side")
