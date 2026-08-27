@@ -325,7 +325,7 @@ def roll_fleet_damage(
     Formula:
 
         (
-            1dMartial
+            1dMartial%
             + every combat ship's individual damage die
         )
         / total ships
@@ -365,9 +365,6 @@ def roll_fleet_damage(
             "total_ships": total_ships
         }
 
-    # One admiral roll per fleet.
-    admiral_dice = 0
-
     # One commander/admiral per fleet.
     for fleet in combat_fleets:
         martial = max(
@@ -378,10 +375,6 @@ def roll_fleet_damage(
                     0
                 )
             )
-        )
-
-        admiral_dice += roll_dice(
-            martial
         )
 
     # Every combat ship rolls its own damage die.
@@ -414,11 +407,11 @@ def roll_fleet_damage(
                 )
 
     raw = (
-        admiral_dice + ship_dice
+        ship_dice
     )
 
     damage = (
-        raw
+        (raw * (martial/100)) + raw
     )
 
     if half_damage:
@@ -426,7 +419,7 @@ def roll_fleet_damage(
 
     return {
         "damage": damage,
-        "admiral_dice": admiral_dice,
+        "admiral_dice": martial,
         "ship_dice": ship_dice,
         "combat_ships": combat_ship_count,
         "total_ships": total_ships
