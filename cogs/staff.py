@@ -419,7 +419,7 @@ class StaffCog(commands.Cog):
         house="House name to assign"
     )
     async def assign_house(self, interaction: discord.Interaction, battle_id: int, side: str, house: str):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=False)
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
             return
@@ -430,7 +430,7 @@ class StaffCog(commands.Cog):
             return
 
         database.assign_house_to_side(battle_id, side_norm, house)
-        await interaction.followup.send(f"Assigned **{house}** to **{side_norm}** for battle {battle_id}.", ephemeral=True)
+        await interaction.followup.send(f"Assigned **{house}** to **{side_norm}** for battle {battle_id}.", ephemeral=False)
 
     @staff.command(name="remove_house", description="Remove a house from a battle side")
     @app_commands.autocomplete(house=utils.house_autocomplete)
