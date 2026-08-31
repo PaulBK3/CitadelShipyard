@@ -1362,12 +1362,19 @@ async def publish_current_fleet_state(
 
     # Show losses suffered by your side this round.
     if result:
-        own_result = result[side]
+
+        enemy_side = (
+        "defender"
+        if side == "attacker"
+        else "attacker"
+        )
+
+        enemy_result = result[enemy_side]
 
         embed.add_field(
             name="Your Losses This Round",
             value=format_ship_losses(
-                own_result["destroyed_by_type"]
+                enemy_result["destroyed_by_type"]
             ),
             inline=False
         )
