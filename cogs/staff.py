@@ -474,7 +474,7 @@ class StaffCog(commands.Cog):
         house="House name to remove"
     )
     async def remove_house(self, interaction: discord.Interaction, battle_id: int, side: str, house: str):
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=False)
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
             return
@@ -484,11 +484,11 @@ class StaffCog(commands.Cog):
             await interaction.followup.send("Side must be 'attacker' or 'defender'.", ephemeral=True)
             return
 
-        database.assign_house_to_side(battle_id, side_norm, house)
+        database.remove_house_from_side(battle_id, side_norm, house)
         house_role = discord.utils.get(interaction.guild.roles, name=house) if interaction.guild else None
         house_mention = house_role.mention if house_role else f"**{house}**"
         await interaction.followup.send(
-            f"Assigned {house_mention} to **{side_norm}** for battle {battle_id}.",
+            f"Removed {house_mention} from **{side_norm}** for battle {battle_id}.",
             allowed_mentions=discord.AllowedMentions(roles=True),
         )
 
