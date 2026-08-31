@@ -334,6 +334,8 @@ class StaffCog(commands.Cog):
         msg = f"**Weekly Fleet Maintenance for {time} years**\n"
         for house_name in houses:
             total = utils.calculate_house_maintenance(house_name, time)
+            if total == 0:
+                continue
             line = f"- {house_name}: {total} gold\n"
 
             if len(msg) + len(line) > max_message_length:
