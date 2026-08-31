@@ -24,7 +24,7 @@ def calculate_house_maintenance(house_name, time):
         if ship_data:
             total += (ship_data.get("maintenance", 0) * amount)/10*time
 
-    return total
+    return int(total)
 
 
 CULTURE_CHOICES = [
