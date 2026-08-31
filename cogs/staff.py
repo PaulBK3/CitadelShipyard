@@ -329,12 +329,24 @@ class StaffCog(commands.Cog):
             await interaction.followup.send("No houses found in database.", ephemeral=True)
             return
 
+        max_message_length = 1900
+        messages = []
         msg = f"**Weekly Fleet Maintenance for {time} years**\n"
         for house_name in houses:
             total = utils.calculate_house_maintenance(house_name, time)
-            msg += f"- {house_name}: {total} gold\n"
+            line = f"- {house_name}: {total} gold\n"
 
-        await interaction.followup.send(msg, ephemeral=False)
+            if len(msg) + len(line) > max_message_length:
+                messages.append(msg)
+                msg = line
+
+            else:
+                msg += line
+
+        messages.append(msg)
+
+        for message in messages:
+            await interaction.followup.send(message, ephemeral=False)
 
     @staff.command(name="create_battle", description="Create a new naval battle")
     @app_commands.autocomplete(attacker=utils.house_autocomplete, defender=utils.house_autocomplete, culture_modifier = culture_modifier_autocomplete)
