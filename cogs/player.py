@@ -6,6 +6,17 @@ import database
 import utils
 
 
+async def saved_fleet_autocomplete(interaction: discord.Interaction, current: str):
+    house = utils.get_house(interaction.user)
+    if not house:
+        return []
+    return [
+        app_commands.Choice(name=fleet["name"][:100], value=fleet["name"][:100])
+        for fleet in database.get_saved_fleets([house])
+        if current.lower() in fleet["name"].lower()
+    ][:25]
+
+
 class PlayerCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
@@ -93,6 +104,50 @@ class PlayerCog(commands.Cog):
             ships = ", ".join(f"{amount} {config.SHIPS.get(ship_type, {}).get('name', ship_type)}" for ship_type, amount in fleet["ships"].items())
             lines.append(f"**{fleet['name']}** ({fleet['fleet_type']}) — {fleet['commander']}\n{ships}")
         await interaction.response.send_message("\n\n".join(lines), ephemeral=True)
+
+    @app_commands.command(name="share_fleet", description="Declare a saved fleet's activity to ship staff")
+    @app_commands.autocomplete(fleet_name=saved_fleet_autocomplete)
+    async def share_fleet(self, interaction: discord.Interaction, fleet_name: str):
+        house = utils.get_house(interaction.user)
+        if not house:
+            await interaction.response.send_message("No valid house role found.", ephemeral=True)
+            return
+
+        fleet = next(
+            (item for item in database.get_saved_fleets([house]) if item["name"] == fleet_name),
+            None,
+        )
+        if not fleet:
+            await interaction.response.send_message("Saved fleet not found.", ephemeral=True)
+            return
+
+        log = next(
+            (channel for channel in interaction.guild.text_channels if channel.name == config.SHIP_LOG_CHANNEL),
+            None,
+        )
+        if not log:
+            await interaction.response.send_message("Ship request channel not found.", ephemeral=True)
+            return
+
+        ships = "\n".join(
+            f"- {amount} {config.SHIPS.get(ship_type, {}).get('name', ship_type)}"
+            for ship_type, amount in fleet["ships"].items()
+        )
+        embed = discord.Embed(
+            title="Fleet Activity Declared",
+            description=(
+                f"**{house}** has declared **{fleet['name']}** "
+                f"for **{fleet['fleet_type'].title()}** activity."
+            ),
+        )
+        embed.add_field(name="Player", value=interaction.user.mention, inline=True)
+        embed.add_field(name="Commander", value=fleet["commander"], inline=True)
+        embed.add_field(name="Commander Martial", value=str(fleet["commander_martial"]), inline=True)
+        embed.add_field(name="Ships", value=ships or "No ships assigned.", inline=False)
+        embed.set_footer(text=f"Saved Fleet ID: {fleet['id']}")
+
+        await log.send(embed=embed)
+        await interaction.response.send_message("Fleet activity shared with ship staff.", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(PlayerCog(bot), guild=discord.Object(id=config.GUILD_ID))
