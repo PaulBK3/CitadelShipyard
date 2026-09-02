@@ -19,7 +19,8 @@ SHIPS = {
         "maintenance": 5,
         "supply_cost": 192,
         "health": 4,
-        "damage": 3
+        "damage": 3,
+        "port_level": 1
     },
     "War_Longship": {
         "name": "War Longship",
@@ -27,7 +28,8 @@ SHIPS = {
         "maintenance": 5,
         "supply_cost": 192,
         "health": 8,
-        "damage": 4
+        "damage": 4,
+        "port_level": 1
     },
     "Galley": {
         "name": "Galley",
@@ -35,7 +37,8 @@ SHIPS = {
         "maintenance": 10,
         "supply_cost": 320,
         "health": 12,
-        "damage": 5
+        "damage": 5,
+        "port_level": 3
     },
     "Myrish_Galley": {
         "name": "Myrish Galley",
@@ -43,7 +46,8 @@ SHIPS = {
         "maintenance": 7,
         "supply_cost": 240,
         "health": 8,
-        "damage": 5
+        "damage": 5,
+        "port_level": 3
     },
     "War_Galley": {
         "name": "War Galley",
@@ -51,7 +55,8 @@ SHIPS = {
         "maintenance": 15,
         "supply_cost": 480,
         "health": 20,
-        "damage": 7
+        "damage": 7,
+        "port_level": 5
     },
     "Myrish_War_Galley": {
         "name": "Myrish War Galley",
@@ -59,7 +64,8 @@ SHIPS = {
         "maintenance": 12,
         "supply_cost": 320,
         "health": 16,
-        "damage": 6
+        "damage": 6,
+        "port_level": 5
     },
     "Dromond": {
         "name": "Dromond",
@@ -67,7 +73,8 @@ SHIPS = {
         "maintenance": 50,
         "supply_cost": 1920,
         "health": 40,
-        "damage": 15
+        "damage": 15,
+        "port_level": 8
     },
     "Supply_Ship": {
         "name": "Supply Ship",
@@ -75,7 +82,8 @@ SHIPS = {
         "maintenance": 0,
         "supply_cost": -1920,
         "health": 0,
-        "damage": 0
+        "damage": 0,
+        "port_level": 1
     },
 }
 
