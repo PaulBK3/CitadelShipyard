@@ -76,6 +76,7 @@ class ShipsCog(commands.Cog):
         embed.add_field(name="House", value=house, inline=True)
         embed.add_field(name="Ship", value=ship_type.name, inline=True)
         embed.add_field(name="Amount", value=str(amount), inline=True)
+        embed.add_field(name="Port Capacity Required", value=str(amount), inline=True)
         embed.add_field(name="Total Cost", value=str(total_cost), inline=True)
 
         if comment:

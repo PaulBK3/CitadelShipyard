@@ -12,6 +12,22 @@ def get_culture_rules(house_name: str):
 
 
 def can_build_ship(house_name: str, ship_type: str):
+    ship = config.SHIPS.get(ship_type)
+    if not ship:
+        return False, "Unknown ship type."
+
+    house = database.get_house(house_name)
+    current_port_level = house.get("highest_port_level", 0) if house else 0
+    required_port_level = ship.get("port_level", 0)
+
+    if current_port_level < required_port_level:
+        return (
+            False,
+            f"This ship requires a level {required_port_level} port. "
+            f"{house_name} currently has a level {current_port_level} port."
+            f"If this is incorrrect, please use /request_port_upgrade to upgrade your port.",
+        )
+
     rules = get_culture_rules(house_name)
 
     if not rules:
