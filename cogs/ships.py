@@ -99,9 +99,6 @@ class ShipsCog(commands.Cog):
         highest_level: app_commands.Range[int, 1, 10] | None = 1,
         comment: str | None = None
     ):
-        if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
-            await interaction.response.send_message("You need the Ship Charta role.", ephemeral=True)
-            return
 
         house = utils.get_house(interaction.user)
         if not house:
