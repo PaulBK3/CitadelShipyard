@@ -19,23 +19,26 @@ class DenyPortReasonModal(discord.ui.Modal, title="Deny Port Upgrade"):
         max_length=500
     )
 
-    def __init__(self, bot, request_id: int):
+    def __init__(self, bot, request_id: int, request_message: discord.Message):
         super().__init__()
         self.bot = bot
         self.request_id = request_id
+        self.request_message = request_message
 
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
         if not utils.has_role(interaction.user, config.SHIP_TEAM_ROLE):
-            await interaction.response.send_message("Ship Staff only.", ephemeral=True)
+            await interaction.followup.send("Ship Staff only.", ephemeral=True)
             return
 
         request = database.get_port_request(self.request_id)
         if not request:
-            await interaction.response.send_message("Request not found.", ephemeral=True)
+            await interaction.followup.send("Request not found.", ephemeral=True)
             return
 
         if request["status"] != "pending":
-            await interaction.response.send_message("This request was already handled.", ephemeral=True)
+            await interaction.followup.send("This request was already handled.", ephemeral=True)
             return
 
         database.update_port_request_status(self.request_id, "denied", interaction.user.name, str(self.reason))
@@ -59,7 +62,9 @@ class DenyPortReasonModal(discord.ui.Modal, title="Deny Port Upgrade"):
 
         new_embed.set_footer(text=f"Port Request ID: {self.request_id}")
 
-        await interaction.response.edit_message(embed=new_embed, view=None)
+        # The submit interaction belongs to the modal, not the original button.
+        # Edit the captured request message after handling the modal response.
+        await self.request_message.edit(embed=new_embed, view=None)
 
         await notify_user(
             self.bot,
@@ -146,4 +151,6 @@ class PortRequestView(discord.ui.View):
             return
 
         request_id = int(footer.replace("Port Request ID: ", ""))
-        await interaction.response.send_modal(DenyPortReasonModal(self.bot, request_id))
+        await interaction.response.send_modal(
+            DenyPortReasonModal(self.bot, request_id, interaction.message)
+        )

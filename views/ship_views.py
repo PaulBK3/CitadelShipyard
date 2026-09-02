@@ -27,10 +27,11 @@ class DenyShipReasonModal(discord.ui.Modal, title="Deny Ship Request"):
         max_length=500
     )
 
-    def __init__(self, bot, request_id: int):
+    def __init__(self, bot, request_id: int, request_message: discord.Message):
         super().__init__()
         self.bot = bot
         self.request_id = request_id
+        self.request_message = request_message
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -70,7 +71,10 @@ class DenyShipReasonModal(discord.ui.Modal, title="Deny Ship Request"):
 
         new_embed.set_footer(text=f"Request ID: {self.request_id}")
 
-        await interaction.response.edit_message(embed=new_embed, view=None)
+        # A modal submission is a separate interaction from the button click.
+        # Its response cannot edit the original request message after defer(),
+        # so edit the message captured when the modal was opened instead.
+        await self.request_message.edit(embed=new_embed, view=None)
 
         await notify_user(
             self.bot,
@@ -228,4 +232,6 @@ class ShipRequestView(discord.ui.View):
             return
 
         request_id = int(footer.replace("Request ID: ", ""))
-        await interaction.response.send_modal(DenyShipReasonModal(self.bot, request_id))
+        await interaction.response.send_modal(
+            DenyShipReasonModal(self.bot, request_id, interaction.message)
+        )
