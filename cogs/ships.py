@@ -55,6 +55,17 @@ class ShipsCog(commands.Cog):
         single_cost = get_modified_ship_cost(house, ship_type.value)
         total_cost = single_cost * amount
 
+        house_data = database.get_house(house) or {}
+        fleet = database.get_fleet_for_house(house)
+        used_capacity = sum(max(ship_amount, 0) for ship_amount in fleet.values())
+        port_level = house_data.get("port_level", 0)
+        capacity_limit = port_level * 10
+        capacity_display = (
+            f"{used_capacity}/{capacity_limit}"
+            if capacity_limit is not None
+            else f"{used_capacity}/unconfigured"
+        )
+
         log = await ship_log_channel(interaction.guild)
         if not log:
             await interaction.response.send_message("Ship request channel not found.", ephemeral=True)
@@ -77,6 +88,7 @@ class ShipsCog(commands.Cog):
         embed.add_field(name="Ship", value=ship_type.name, inline=True)
         embed.add_field(name="Amount", value=str(amount), inline=True)
         embed.add_field(name="Port Capacity Required", value=str(amount), inline=True)
+        embed.add_field(name="Current Port Capacity", value=capacity_display, inline=True)
         embed.add_field(name="Total Cost", value=str(total_cost), inline=True)
 
         if comment:
