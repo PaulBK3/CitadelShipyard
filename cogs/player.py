@@ -55,5 +55,44 @@ class PlayerCog(commands.Cog):
 
         await interaction.response.send_message(msg, ephemeral=True)
 
+    @app_commands.command(name="create_fleet", description="Create a named patrol or trade fleet")
+    @app_commands.choices(
+        fleet_type=[app_commands.Choice(name="Patrol", value="patrol"), app_commands.Choice(name="Trade", value="trade")],
+        ship_type=utils.SHIP_CHOICES,
+    )
+    async def create_fleet(self, interaction: discord.Interaction, name: str, fleet_type: app_commands.Choice[str], commander: str, commander_martial: app_commands.Range[int, 0, 100], ship_type: app_commands.Choice[str], amount: app_commands.Range[int, 1, 1000]):
+        house = utils.get_house(interaction.user)
+        if not house:
+            await interaction.response.send_message("No valid house role found.", ephemeral=True)
+            return
+        result = database.create_saved_fleet(house, name, fleet_type.value, commander, commander_martial, interaction.user.id, ship_type.value, amount)
+        await interaction.response.send_message(result["message"], ephemeral=True)
+
+    @app_commands.command(name="add_fleet_ship", description="Add ships to one of your named fleets")
+    @app_commands.choices(ship_type=utils.SHIP_CHOICES)
+    async def add_fleet_ship(self, interaction: discord.Interaction, fleet_name: str, ship_type: app_commands.Choice[str], amount: app_commands.Range[int, 1, 1000]):
+        house = utils.get_house(interaction.user)
+        if not house:
+            await interaction.response.send_message("No valid house role found.", ephemeral=True)
+            return
+        result = database.add_ship_to_saved_fleet(house, fleet_name, ship_type.value, amount)
+        await interaction.response.send_message(result["message"], ephemeral=True)
+
+    @app_commands.command(name="my_fleets", description="View your named patrol and trade fleets")
+    async def my_fleets(self, interaction: discord.Interaction):
+        house = utils.get_house(interaction.user)
+        if not house:
+            await interaction.response.send_message("No valid house role found.", ephemeral=True)
+            return
+        fleets = database.get_saved_fleets([house])
+        if not fleets:
+            await interaction.response.send_message("You have no saved fleets.", ephemeral=True)
+            return
+        lines = []
+        for fleet in fleets:
+            ships = ", ".join(f"{amount} {config.SHIPS.get(ship_type, {}).get('name', ship_type)}" for ship_type, amount in fleet["ships"].items())
+            lines.append(f"**{fleet['name']}** ({fleet['fleet_type']}) — {fleet['commander']}\n{ships}")
+        await interaction.response.send_message("\n\n".join(lines), ephemeral=True)
+
 async def setup(bot):
     await bot.add_cog(PlayerCog(bot), guild=discord.Object(id=config.GUILD_ID))

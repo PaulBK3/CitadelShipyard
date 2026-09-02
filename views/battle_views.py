@@ -125,6 +125,9 @@ class BattleFleetView(discord.ui.View):
                     f"create_fleet_{battle_id}"
                 )
 
+            elif item.label == "Add Saved Fleet":
+                item.custom_id = f"add_saved_fleet_{battle_id}"
+
             elif item.label == "Lock Fleets":
                 item.custom_id = (
                     f"lock_fleets_{battle_id}"
@@ -242,6 +245,31 @@ class BattleFleetView(discord.ui.View):
             "Choose a house for your fleet:",
             view=view,
             ephemeral=True
+        )
+
+    @discord.ui.button(label="Add Saved Fleet", style=discord.ButtonStyle.secondary)
+    async def add_saved_fleet(self, interaction: discord.Interaction, button: discord.ui.Button):
+        try:
+            battle_id = int(button.custom_id.split("_")[-1])
+        except (ValueError, IndexError):
+            await interaction.response.send_message("Error: Invalid battle ID.", ephemeral=True)
+            return
+        if database.is_battle_fleets_locked(battle_id):
+            await interaction.response.send_message("Fleets are locked for this battle.", ephemeral=True)
+            return
+        battle = database.get_battle_by_thread(interaction.channel.id) or database.get_battle(battle_id)
+        side_houses = None
+        if battle and battle.get("side") in ("attacker", "defender"):
+            side_houses = database.get_houses_for_side(battle_id, battle["side"])
+        fleets = database.get_saved_fleets(side_houses) if side_houses else database.get_saved_fleets()
+        fleets = [fleet for fleet in fleets if fleet["ships"]]
+        if not fleets:
+            await interaction.response.send_message("No saved fleets are available for this battle.", ephemeral=True)
+            return
+        await interaction.response.send_message(
+            "Choose a saved fleet to add:",
+            view=SavedFleetSelectView(battle_id, fleets[:25], interaction.user.id, self.bot, interaction.channel.id, interaction.message.id),
+            ephemeral=True,
         )
 
     @discord.ui.button(
@@ -461,6 +489,61 @@ class BattleFleetView(discord.ui.View):
                 self.battle_id
             )
         )
+
+class SavedFleetSelectView(discord.ui.View):
+    def __init__(self, battle_id, fleets, user_id, bot, channel_id, message_id):
+        super().__init__(timeout=180)
+        self.battle_id = battle_id
+        self.fleets = {fleet["id"]: fleet for fleet in fleets}
+        self.user_id = user_id
+        self.bot = bot
+        self.channel_id = channel_id
+        self.message_id = message_id
+        options = [
+            discord.SelectOption(
+                label=f"{fleet['house']} — {fleet['name']} ({fleet['fleet_type']})"[:100],
+                value=fleet["id"],
+                description=f"{sum(fleet['ships'].values())} ships, {fleet['commander']}"[:100],
+            )
+            for fleet in fleets
+        ]
+        select = discord.ui.Select(placeholder="Choose a saved fleet", options=options)
+        select.callback = self.select_fleet
+        self.add_item(select)
+
+    async def interaction_check(self, interaction):
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("Only the original user can choose this fleet.", ephemeral=True)
+            return False
+        return True
+
+    async def select_fleet(self, interaction):
+        fleet = self.fleets.get(interaction.data.get("values", [None])[0])
+        if not fleet:
+            await interaction.response.send_message("Saved fleet not found.", ephemeral=True)
+            return
+        result = database.submit_battle_fleet(
+            self.battle_id,
+            fleet["house"],
+            fleet["commander"],
+            fleet["commander_martial"],
+            fleet["ships"],
+        )
+        if not result["success"]:
+            await interaction.response.send_message(result["message"], ephemeral=True)
+            return
+        await interaction.response.edit_message(
+            content=f"Added **{fleet['name']}** to battle {self.battle_id}.",
+            view=None,
+        )
+        await refresh_battle_message(
+            self.bot,
+            self.channel_id,
+            self.message_id,
+            self.battle_id,
+            BattleFleetView(self.bot, self.battle_id),
+        )
+
 
 class HouseSelectView(discord.ui.View):
     def __init__(

@@ -149,6 +149,30 @@ def setup():
         FOREIGN KEY (battle_id) REFERENCES battles(id)
     )
     """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS saved_fleets (
+        id TEXT PRIMARY KEY,
+        house TEXT NOT NULL,
+        name TEXT NOT NULL,
+        fleet_type TEXT NOT NULL,
+        commander TEXT NOT NULL,
+        commander_martial INTEGER NOT NULL DEFAULT 0,
+        created_by INTEGER NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(house, name)
+    )
+    """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS saved_fleet_ships (
+        fleet_id TEXT NOT NULL,
+        ship_type TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        PRIMARY KEY(fleet_id, ship_type),
+        FOREIGN KEY(fleet_id) REFERENCES saved_fleets(id)
+    )
+    """)
     # ---------------------------------------------------------
     # Battle combat state
     # ---------------------------------------------------------
@@ -745,6 +769,73 @@ def set_house_port_level(house_name, port_level, highest_port_level=None):
 # =========================================================
 # FLEET LEDGER
 # =========================================================
+
+def create_saved_fleet(house, name, fleet_type, commander, commander_martial, created_by, ship_type, amount):
+    name = str(name).strip()
+    commander = str(commander).strip()
+    if not name or not commander:
+        return {"success": False, "message": "A fleet name and commander are required."}
+    if ship_type not in config.SHIPS or amount <= 0:
+        return {"success": False, "message": "Choose a valid ship type and a positive amount."}
+    if commander_martial < 0:
+        return {"success": False, "message": "Commander Martial cannot be negative."}
+    if amount > get_fleet_for_house(house).get(ship_type, 0):
+        return {"success": False, "message": f"Only {get_fleet_for_house(house).get(ship_type, 0)} {ship_type} available."}
+    try:
+        fleet_id = str(uuid.uuid4())
+        cursor.execute("""
+            INSERT INTO saved_fleets(id, house, name, fleet_type, commander, commander_martial, created_by)
+            VALUES(?, ?, ?, ?, ?, ?, ?)
+        """, (fleet_id, house, name, fleet_type, commander, commander_martial, created_by))
+        cursor.execute("INSERT INTO saved_fleet_ships(fleet_id, ship_type, amount) VALUES(?, ?, ?)", (fleet_id, ship_type, amount))
+        conn.commit()
+        return {"success": True, "fleet_id": fleet_id, "message": "Fleet created."}
+    except sqlite3.IntegrityError:
+        return {"success": False, "message": f"{house} already has a fleet named **{name}**."}
+
+
+def add_ship_to_saved_fleet(house, name, ship_type, amount):
+    cursor.execute("SELECT id FROM saved_fleets WHERE house=? AND name=?", (house, name))
+    row = cursor.fetchone()
+    if not row:
+        return {"success": False, "message": "Saved fleet not found."}
+    if ship_type not in config.SHIPS or amount <= 0:
+        return {"success": False, "message": "Choose a valid ship type and a positive amount."}
+    fleet_id = row[0]
+    cursor.execute("SELECT amount FROM saved_fleet_ships WHERE fleet_id=? AND ship_type=?", (fleet_id, ship_type))
+    existing = cursor.fetchone()
+    total = amount + (existing[0] if existing else 0)
+    available = get_fleet_for_house(house).get(ship_type, 0)
+    if total > available:
+        return {"success": False, "message": f"Only {available} {ship_type} owned by {house}."}
+    cursor.execute("""
+        INSERT INTO saved_fleet_ships(fleet_id, ship_type, amount) VALUES(?, ?, ?)
+        ON CONFLICT(fleet_id, ship_type) DO UPDATE SET amount=excluded.amount
+    """, (fleet_id, ship_type, total))
+    conn.commit()
+    return {"success": True, "message": "Ships added."}
+
+
+def get_saved_fleets(houses=None):
+    query = "SELECT id, house, name, fleet_type, commander, commander_martial FROM saved_fleets"
+    params = ()
+    if houses is not None:
+        if not houses:
+            return []
+        query += f" WHERE house IN ({','.join('?' for _ in houses)})"
+        params = tuple(houses)
+    query += " ORDER BY house, name"
+    cursor.execute(query, params)
+    fleets = []
+    for fleet_id, house, name, fleet_type, commander, martial in cursor.fetchall():
+        cursor.execute("SELECT ship_type, amount FROM saved_fleet_ships WHERE fleet_id=?", (fleet_id,))
+        fleets.append({"id": fleet_id, "house": house, "name": name, "fleet_type": fleet_type, "commander": commander, "commander_martial": martial, "ships": dict(cursor.fetchall())})
+    return fleets
+
+
+def get_saved_fleet(fleet_id):
+    fleets = get_saved_fleets()
+    return next((fleet for fleet in fleets if fleet["id"] == fleet_id), None)
 
 def add_fleet_entry(house, ship_type, amount):
     cursor.execute("""
