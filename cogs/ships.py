@@ -101,14 +101,14 @@ class ShipsCog(commands.Cog):
 
     @app_commands.command(name="request_port_upgrade", description="Request a port level upgrade")
     @app_commands.describe(
-        requested_level="Sum of new port capacity",
+        requested_level="Sum of new port capacity. i.e. 2 lvl 2 ports = 4",
         highest_level="Highest port level available",
         comment="Optional note for staff"
     )
     async def request_port_upgrade(
         self,
         interaction: discord.Interaction,
-        requested_level: app_commands.Range[int, 5, 1000],
+        requested_level: app_commands.Range[int, 1, 100],
         highest_level: app_commands.Range[int, 1, 10] | None = 1,
         comment: str | None = None
     ):
