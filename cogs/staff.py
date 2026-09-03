@@ -142,7 +142,7 @@ class StaffCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         house: str,
-        port_level: app_commands.Range[int, 0, 10],
+        port_level: app_commands.Range[int, 0, 100],
         highest_port_level: app_commands.Range[int, 0, 10] | None = None,
     ):
         await interaction.response.defer(ephemeral=True)
