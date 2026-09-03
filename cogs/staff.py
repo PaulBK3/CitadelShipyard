@@ -65,7 +65,7 @@ class StaffCog(commands.Cog):
         duchy: str,
         region: str,
         culture: app_commands.Choice[str] | None = None,
-        port_level: app_commands.Range[int, 0, 10] | None = None,
+        port_level: app_commands.Range[int, 0, 100] | None = None,
         highest_port_level: app_commands.Range[int, 0, 10] | None = None
 
     ):
