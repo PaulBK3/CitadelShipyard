@@ -75,17 +75,6 @@ class StaffCog(commands.Cog):
             await interaction.followup.send("Ship Staff only.", ephemeral=True)
             return
 
-        if (
-            port_level is not None
-            and highest_port_level is not None
-            and port_level > highest_port_level
-        ):
-            await interaction.followup.send(
-                "The current port level cannot exceed the highest port level.",
-                ephemeral=True,
-            )
-            return
-
         culture_name = culture.value if culture else None
         database.upsert_house(
             house,
