@@ -476,7 +476,7 @@ class BattleFleetView(discord.ui.View):
 
         await interaction.response.send_message(
             "Battle closed. Permanent fleet numbers have been updated.",
-            ephemeral=True
+            ephemeral=False
         )
 
         await refresh_battle_message(
@@ -1771,7 +1771,7 @@ class BattleCombatView(discord.ui.View):
 
         await interaction.response.send_message(
             "Battle closed. Permanent fleet numbers have been updated.",
-            ephemeral=True
+            ephemeral=False
         )
 
         await refresh_battle_message(
