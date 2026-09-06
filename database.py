@@ -1137,7 +1137,7 @@ def get_active_battles():
     cursor.execute("""
     SELECT id, name, attacker_house, defender_house, status, thread_id
     FROM battles
-    WHERE status='preparing'
+    WHERE status IN ('preparing', 'active')
     """)
     rows = cursor.fetchall()
     return [{

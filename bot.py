@@ -7,7 +7,7 @@ import database
 
 from views.ship_views import ShipRequestView, ApprovedShipView
 from views.port_views import PortRequestView
-from views.battle_views import BattleFleetView
+from views.battle_views import BattleCombatView, BattleFleetView
 from dotenv import load_dotenv
 
 
@@ -39,7 +39,10 @@ async def setup_hook():
     bot.add_view(PortRequestView(bot))
 
     for battle in database.get_active_battles():
-        bot.add_view(BattleFleetView(bot, battle["id"]))
+        if battle["status"] == "active":
+            BattleCombatView(bot, battle["id"])
+        else:
+            BattleFleetView(bot, battle["id"])
 
     synced = await bot.tree.sync(guild=guild)
     print(f"Synced {len(synced)} commands to dev guild.")
