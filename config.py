@@ -9,7 +9,8 @@ SEA_BATTLE_CHANNEL = "⚓︱sea-battles"
 HOUSE_ROLE_FILTER = [
     "House ",
     "Free City of ",
-    "Kingdom of "
+    "Kingdom of ",
+    "High "
 ]
 
 SHIPS = {
