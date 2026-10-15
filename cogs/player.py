@@ -149,5 +149,24 @@ class PlayerCog(commands.Cog):
         await log.send(embed=embed)
         await interaction.response.send_message("Fleet activity shared with ship staff.", ephemeral=True)
 
+    @app_commands.command(name="delete_fleet", description="Delete a saved fleet")
+    async def delete_fleet(self, interaction: discord.Interaction, fleet_name: str):
+        house = utils.get_house(interaction.user)
+        if not house:
+            await interaction.response.send_message("No valid house role found.", ephemeral=True)
+            return
+
+        fleet = next(
+            (item for item in database.get_saved_fleets([house]) if item["name"] == fleet_name),
+            None,
+        )
+        if not fleet:
+            await interaction.response.send_message("Saved fleet not found.", ephemeral=True)
+            return
+
+        result = database.delete_saved_fleet(fleet["id"])
+        await interaction.response.send_message(result["message"], ephemeral=True)
+
+
 async def setup(bot):
     await bot.add_cog(PlayerCog(bot), guild=discord.Object(id=config.GUILD_ID))

@@ -837,6 +837,11 @@ def get_saved_fleet(fleet_id):
     fleets = get_saved_fleets()
     return next((fleet for fleet in fleets if fleet["id"] == fleet_id), None)
 
+def delete_saved_fleet(fleet_id):
+    cursor.execute("DELETE FROM saved_fleet_ships WHERE fleet_id=?", (fleet_id,))
+    cursor.execute("DELETE FROM saved_fleets WHERE id=?", (fleet_id,))
+    conn.commit()
+    
 def add_fleet_entry(house, ship_type, amount):
     cursor.execute("""
     SELECT id
