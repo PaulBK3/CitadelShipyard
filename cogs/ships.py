@@ -58,8 +58,8 @@ class ShipsCog(commands.Cog):
         house_data = database.get_house(house) or {}
         fleet = database.get_fleet_for_house(house)
         used_capacity = 0
-        for ship_type, ship_amount in fleet.items():
-            if ship_type in ("Longship", "War_Longship"):
+        for ship, ship_amount in fleet.items():
+            if ship in ("Longship", "War_Longship"):
                 used_capacity += max(ship_amount, 0) / 50
             else:
                 used_capacity += max(ship_amount, 0)
