@@ -174,8 +174,8 @@ class PlayerCog(commands.Cog):
             await interaction.response.send_message("Saved fleet not found.", ephemeral=True)
             return
 
-        result = database.delete_saved_fleet(fleet["id"])
-        await interaction.response.send_message(result["message"], ephemeral=True)
+        database.delete_saved_fleet(fleet["id"])
+        await interaction.response.send_message("Fleet deleted successfully.", ephemeral=True)
 
 
 async def setup(bot):
