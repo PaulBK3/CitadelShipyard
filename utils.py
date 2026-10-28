@@ -59,3 +59,30 @@ async def house_autocomplete(interaction: discord.Interaction, current: str):
         return [app_commands.Choice(name=h, value=h) for h in matches]
     except Exception:
         return []
+
+def split_discord_message(message, limit=2000):
+    """Split a message on line boundaries while respecting Discord's size limit."""
+    chunks = []
+    current = ""
+
+    for line in message.splitlines(keepends=True):
+        # Duchy names are normally short, but split an unexpectedly long line
+        # too, so one malformed entry cannot make the command fail.
+        while len(line) > limit:
+            if current:
+                chunks.append(current)
+                current = ""
+            chunks.append(line[:limit])
+            line = line[limit:]
+
+        if len(current) + len(line) > limit:
+            if current:
+                chunks.append(current)
+            current = line
+        else:
+            current += line
+
+    if current:
+        chunks.append(current)
+
+    return chunks or [message]

@@ -1,3 +1,5 @@
+from pyexpat.errors import messages
+
 import discord
 from discord.ext import commands
 from discord import app_commands
@@ -103,7 +105,15 @@ class PlayerCog(commands.Cog):
         for fleet in fleets:
             ships = ", ".join(f"{amount} {config.SHIPS.get(ship_type, {}).get('name', ship_type)}" for ship_type, amount in fleet["ships"].items())
             lines.append(f"**{fleet['name']}** ({fleet['fleet_type']}) — {fleet['commander']}\n{ships}")
-        await interaction.response.send_message("\n\n".join(lines), ephemeral=True)
+
+        msg = "\n\n".join(lines)
+        messages = utils.split_discord_message(msg)
+        await interaction.response.send_message(
+            messages[0],
+            ephemeral=True
+        )
+        for message in messages[1:]:
+            await interaction.followup.send(message, ephemeral=True)
 
     @app_commands.command(name="share_fleet", description="Declare a saved fleet's activity to ship staff")
     @app_commands.autocomplete(fleet_name=saved_fleet_autocomplete)
