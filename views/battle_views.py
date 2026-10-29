@@ -5,6 +5,53 @@ import utils
 import battle_engine
 
 
+# Discord rejects the whole embed if any of these are exceeded.
+EMBED_MAX_FIELDS = 25
+EMBED_MAX_CHARS = 6000
+OVERFLOW_FIELD_CHARS = 120
+
+
+def add_fields_within_limits(
+    embed,
+    fields,
+    reserved_fields=0,
+    reserved_chars=0
+):
+    """Add (name, value) fields until Discord's embed limits are reached,
+    then summarise the remaining ones in a single overflow field."""
+    fields = list(fields)
+
+    for index, (name, value) in enumerate(fields):
+        name = name[:256]
+        value = value[:1024]
+
+        # Always keep room for the overflow field.
+        too_many_fields = (
+            len(embed.fields) + 2 + reserved_fields
+            > EMBED_MAX_FIELDS
+        )
+        too_many_chars = (
+            len(embed) + len(name) + len(value)
+            + OVERFLOW_FIELD_CHARS + reserved_chars
+            > EMBED_MAX_CHARS
+        )
+
+        if too_many_fields or too_many_chars:
+            hidden = len(fields) - index
+            embed.add_field(
+                name="More fleets",
+                value=f"+{hidden} more fleet(s) not shown (Discord embed size limit).",
+                inline=False
+            )
+            return
+
+        embed.add_field(
+            name=name,
+            value=value,
+            inline=False
+        )
+
+
 def build_battle_embed(battle_id, thread_id=None):
     battle = database.get_battle_by_thread(thread_id) if thread_id else database.get_battle(battle_id)
     if not battle:
@@ -38,6 +85,9 @@ def build_battle_embed(battle_id, thread_id=None):
         color=0xff0000
     )
 
+    # Set the footer first so it counts towards the embed size limit.
+    embed.set_footer(text=f"Battle ID: {battle_id}")
+
     fleet_groups = database.get_battle_fleet_groups(battle_id)
 
     if side_houses:
@@ -48,6 +98,8 @@ def build_battle_embed(battle_id, thread_id=None):
         ]
 
     if fleet_groups:
+        fields = []
+
         for group in fleet_groups:
             house = group["house"]
             commander = group.get("commander") or "Unknown Commander"
@@ -57,11 +109,12 @@ def build_battle_embed(battle_id, thread_id=None):
                 for ship_type, amount in group["ships"].items()
             ]
 
-            embed.add_field(
-                name=f"{house} — {commander}",
-                value="\n".join(lines),
-                inline=False
-            )
+            fields.append((
+                f"{house} — {commander}",
+                "\n".join(lines) or "No ships"
+            ))
+
+        add_fields_within_limits(embed, fields)
     else:
         empty_text = (
             f"No fleets registered yet for {side_house}."
@@ -74,11 +127,6 @@ def build_battle_embed(battle_id, thread_id=None):
             value=empty_text,
             inline=False
         )
-
-    try:
-        embed.set_footer(text=f"Battle ID: {battle_id}")
-    except Exception:
-        pass
 
     return embed
 
@@ -102,8 +150,8 @@ async def refresh_battle_message(
             embed=build_battle_embed(battle_id, channel.id),
             view=view
         )
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"Failed to refresh battle message {message_id} for battle {battle_id}: {exc!r}")
 
 
 class BattleFleetView(discord.ui.View):
@@ -890,31 +938,47 @@ class RemoveFleetView(discord.ui.View):
         user_id: int,
         bot,
         origin_channel_id: int,
-        origin_message_id: int
+        origin_message_id: int,
+        page: int = 0
     ):
         super().__init__(timeout=None)
 
         self.battle_id = battle_id
+        self.fleet_groups = fleet_groups
         self.user_id = user_id
         self.bot = bot
         self.origin_channel_id = origin_channel_id
         self.origin_message_id = origin_message_id
         self.selected_fleet_id = None
 
+        # Discord allows at most 25 options per select, so page through them.
+        page_size = 25
+        self.page_count = max(1, -(-len(fleet_groups) // page_size))
+        self.page = min(max(page, 0), self.page_count - 1)
+
+        page_groups = fleet_groups[
+            self.page * page_size:(self.page + 1) * page_size
+        ]
+
         options = [
             discord.SelectOption(
                 label=(
                     f"{group['house']} — "
-                    f"{group.get('commander', 'Unknown Commander')} "
+                    f"{group.get('commander') or 'Unknown Commander'} "
                     f"({sum(group['ships'].values())} ships)"
-                ),
+                )[:100],
                 value=group["fleet_id"]
             )
-            for group in fleet_groups
+            for group in page_groups
         ]
 
+        placeholder = "Select a fleet to remove"
+
+        if self.page_count > 1:
+            placeholder += f" (page {self.page + 1}/{self.page_count})"
+
         self.fleet_select = discord.ui.Select(
-            placeholder="Select a fleet to remove",
+            placeholder=placeholder,
             options=options,
             custom_id=f"remove_fleet_select_{battle_id}",
             min_values=1,
@@ -923,6 +987,52 @@ class RemoveFleetView(discord.ui.View):
 
         self.fleet_select.callback = self.select_fleet
         self.add_item(self.fleet_select)
+
+        if self.page_count > 1:
+            previous_button = discord.ui.Button(
+                label="Previous Page",
+                style=discord.ButtonStyle.secondary,
+                disabled=self.page == 0
+            )
+            previous_button.callback = self.previous_page
+            self.add_item(previous_button)
+
+            next_button = discord.ui.Button(
+                label="Next Page",
+                style=discord.ButtonStyle.secondary,
+                disabled=self.page >= self.page_count - 1
+            )
+            next_button.callback = self.next_page
+            self.add_item(next_button)
+
+    async def change_page(
+        self,
+        interaction: discord.Interaction,
+        page: int
+    ):
+        await interaction.response.edit_message(
+            view=RemoveFleetView(
+                battle_id=self.battle_id,
+                fleet_groups=self.fleet_groups,
+                user_id=self.user_id,
+                bot=self.bot,
+                origin_channel_id=self.origin_channel_id,
+                origin_message_id=self.origin_message_id,
+                page=page
+            )
+        )
+
+    async def previous_page(
+        self,
+        interaction: discord.Interaction
+    ):
+        await self.change_page(interaction, self.page - 1)
+
+    async def next_page(
+        self,
+        interaction: discord.Interaction
+    ):
+        await self.change_page(interaction, self.page + 1)
 
     async def interaction_check(
         self,
@@ -1027,7 +1137,8 @@ class RemoveFleetView(discord.ui.View):
                 user_id=self.user_id,
                 bot=self.bot,
                 origin_channel_id=self.origin_channel_id,
-                origin_message_id=self.origin_message_id
+                origin_message_id=self.origin_message_id,
+                page=self.page
             )
 
             await interaction.response.edit_message(
@@ -1397,6 +1508,8 @@ async def publish_current_fleet_state(
         )
 
     else:
+        fields = []
+
         for fleet in fleets:
 
             lines = []
@@ -1434,31 +1547,44 @@ async def publish_current_fleet_state(
                 or "Unknown"
             )
 
-            embed.add_field(
-                name=(
-                    f"{fleet['house']} "
-                    f"— {commander}"
-                ),
-                value="\n".join(lines),
-                inline=False
-            )
+            fields.append((
+                f"{fleet['house']} "
+                f"— {commander}",
+                "\n".join(lines)
+            ))
 
-    # Show losses suffered by your side this round.
+    losses_text = None
+
     if result:
-
         enemy_side = (
         "defender"
         if side == "attacker"
         else "attacker"
         )
 
-        enemy_result = result[enemy_side]
+        losses_text = format_ship_losses(
+            result[enemy_side]["destroyed_by_type"]
+        )[:1024]
+
+    if fleets:
+        # Keep room for the losses field added below.
+        add_fields_within_limits(
+            embed,
+            fields,
+            reserved_fields=1 if losses_text else 0,
+            reserved_chars=(
+                len("Your Losses This Round") + len(losses_text)
+                if losses_text
+                else 0
+            )
+        )
+
+    # Show losses suffered by your side this round.
+    if result:
 
         embed.add_field(
             name="Your Losses This Round",
-            value=format_ship_losses(
-                enemy_result["destroyed_by_type"]
-            ),
+            value=losses_text,
             inline=False
         )
 
