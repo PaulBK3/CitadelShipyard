@@ -56,7 +56,8 @@ def get_culture_combat_modifiers(
             modifier.get("condition", "")
         ).strip().lower()
 
-        if condition in selected_conditions:
+        # Modifiers without a condition always apply.
+        if not condition or condition in selected_conditions:
             modifiers.append(modifier)
 
     return modifiers
@@ -104,6 +105,11 @@ def get_modified_ship_stats(
         house,
         selected_conditions
     ):
+        ship_types = modifier.get("ship_types", "ALL")
+
+        if ship_types != "ALL" and ship_type not in ship_types:
+            continue
+
         health += int(
             modifier.get("health_bonus", 0)
         )

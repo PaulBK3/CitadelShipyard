@@ -88,34 +88,57 @@ SHIPS = {
     },
 }
 
+# Ship lists shared by most cultures
+WESTEROSI_SHIPS = ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"]
+ESSOSI_SHIPS = ["Myrish_Galley", "Myrish_War_Galley"]
+
+# Combat modifiers without a "condition" are always applied.
+# Combat modifiers with "ship_types" only apply to those ship types.
+# Conditional combat modifiers must be selected by staff for the battle.
+WESTERLANDS_CULTURE = {
+    "allowed_ships": WESTEROSI_SHIPS,
+    "blocked_ships": ESSOSI_SHIPS + ["War_Longship"],
+    "cost_modifiers": [],
+    "maintenance_modifiers": [
+        {
+            "ship_types": "ALL",
+            "multiplier": 1.5,
+            "reason": "Due to their overabundance and corruption they pay 50% more naval upkeep."
+        }
+    ],
+    "fleet_rules": {
+        "base": 20,
+        "stat": "martial"
+    },
+    "special_rules": []
+}
+
 SEA_CULTURES = {
     # =========================
     # WESTEROS
     # =========================
     "Ironborn": {
-        "allowed_ships": ["Longship", "War_Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
-        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley"],
+        "allowed_ships": WESTEROSI_SHIPS + ["War_Longship"],
+        "blocked_ships": ESSOSI_SHIPS,
         "cost_modifiers": [],
-        "maintenance_modifiers": [
-            {
-                "ship_types": ["War_Galley", "Dromond", "Galley"],
-                "multiplier": 2.0,
-                "reason": "Ironborn pay double maintenance for ships larger than Longships."
-            }
-        ],
+        "maintenance_modifiers": [],
         "fleet_rules": {
             "base": 20,
             "stat": "martial"
         },
-        "special_rules": [
-            "Can raise the Iron Fleet (100 Longships) if they hold 1500 raid gold.",
-            "Doing so strips all timber from the Iron Islands and blocks shipbuilding for 30 years unless wood is imported."
-        ]
+        "combat_modifiers": [
+            {
+                "ship_types": ["War_Longship"],
+                "damage_bonus": 1,
+                "reason": "Ironborn War Longships deal +1 damage."
+            }
+        ],
+        "special_rules": []
     },
 
     "Shieldman": {
-        "allowed_ships": ["Longship", "War_Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
-        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley"],
+        "allowed_ships": WESTEROSI_SHIPS + ["War_Longship"],
+        "blocked_ships": ESSOSI_SHIPS,
         "cost_modifiers": [],
         "maintenance_modifiers": [],
         "fleet_rules": {
@@ -125,18 +148,16 @@ SEA_CULTURES = {
         "combat_modifiers": [
             {
                 "condition": "defending_mander",
-                "damage_bonus": 1
+                "health_bonus": 4,
+                "reason": "Fleets led by a Shieldman Admiral gain +4 health when defending the Mander."
             }
         ],
-        "special_rules": [
-            "Loses cultural bonuses if the Shield Islands are politically unified above the other island lords.",
-            "Can command fleets of unplayed Shield Island houses if relations are good."
-        ]
+        "special_rules": []
     },
 
     "Vineman": {
-        "allowed_ships": ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
-        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley", "War_Longship"],
+        "allowed_ships": WESTEROSI_SHIPS,
+        "blocked_ships": ESSOSI_SHIPS + ["War_Longship"],
         "cost_modifiers": [],
         "maintenance_modifiers": [],
         "fleet_rules": {
@@ -146,22 +167,22 @@ SEA_CULTURES = {
         "special_modifiers": [
             {
                 "condition": "trading_fleet",
-                "security_bonus": 1
+                "security_bonus": 5
             }
         ],
         "special_rules": [
-            "Fleet of the Arbor cannot be raised offensively while the Redwyne player is in debt."
+            "May only use 25% of their fleet when going on the offensive."
         ]
     },
 
-    "Dornish": {
+    "Drylander": {
         "allowed_ships": ["Longship", "Galley", "Myrish_Galley", "Supply_Ship"],
-        "blocked_ships": ["Dromond", "Great_Dromond", "War_Galley", "Myrish_War_Galley"],
+        "blocked_ships": ["War_Longship", "War_Galley", "Myrish_War_Galley", "Dromond"],
         "cost_modifiers": [
             {
                 "ship_types": "ALL",
                 "multiplier": 2.0,
-                "reason": "Stone Dornish pay double ship construction costs."
+                "reason": "Drylander / Red Mountain Dornish pay double ship production costs."
             }
         ],
         "maintenance_modifiers": [],
@@ -170,42 +191,63 @@ SEA_CULTURES = {
             "stat": "martial"
         },
         "special_rules": [
-            "Cannot build ships larger than Galleys."
+            "Cannot build ships greater than Galleys."
+        ]
+    },
+
+    "Dornish": {
+        "allowed_ships": WESTEROSI_SHIPS + ESSOSI_SHIPS,
+        "blocked_ships": ["War_Longship"],
+        "cost_modifiers": [],
+        "maintenance_modifiers": [],
+        "fleet_rules": {
+            "base": 20,
+            "stat": "martial"
+        },
+        "special_rules": [
+            "Can build Essosi ship types."
         ]
     },
 
     "Westerosi Valyrian": {
-        "allowed_ships": ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
-        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley", "War_Longship"],
+        "allowed_ships": WESTEROSI_SHIPS,
+        "blocked_ships": ESSOSI_SHIPS + ["War_Longship"],
         "cost_modifiers": [],
         "maintenance_modifiers": [
             {
-                "ship_types": ["Galley", "War_Galley"],
+                "ship_types": ["Galley"],
                 "multiplier": 0.5,
-                "condition": "spicetown_rebuilt",
-                "reason": "Galleys cost half maintenance if Spicetown is rebuilt."
+                "condition": "velaryon_spicetown",
+                "reason": "Galleys cost half maintenance if House Velaryon holds a functioning Spicetown."
             }
         ],
         "fleet_rules": {
             "base": 20,
             "stat": "martial",
-            "conditional_override": {
-                "condition": "targaryen_on_throne",
-                "base": 25
-            }
+            "conditional_overrides": [
+                {
+                    "condition": "targaryen_on_throne",
+                    "base": 25
+                },
+                {
+                    "condition": "no_targaryen_and_no_valyrian_master_of_ships",
+                    "base": 18
+                }
+            ]
         },
         "special_rules": [
-            "If no Targaryen sits the throne and no Westerosi Valyrian is Master of Ships, fleet cap may be reduced by staff."
+            "Fleet size is 25+Martial while a Targaryen sits on the throne.",
+            "Fleet size is 18+Martial if no Targaryen sits on the throne and no Westerosi Valyrian is Master of Ships."
         ]
     },
 
     "Harborman": {
-        "allowed_ships": ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
-        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley", "War_Longship"],
+        "allowed_ships": WESTEROSI_SHIPS,
+        "blocked_ships": ESSOSI_SHIPS + ["War_Longship"],
         "cost_modifiers": [],
         "maintenance_modifiers": [
             {
-                "ship_types": ["Dromond", "War_Galley"],
+                "ship_types": ["War_Galley", "Dromond"],
                 "multiplier": 1.10,
                 "reason": "Ships larger than Galleys cost 10% more to maintain."
             }
@@ -217,7 +259,7 @@ SEA_CULTURES = {
         "special_modifiers": [
             {
                 "condition": "all_fleets",
-                "security_bonus": 1
+                "security_bonus": 5
             }
         ],
         "special_rules": []
@@ -225,7 +267,7 @@ SEA_CULTURES = {
 
     "Bearmen": {
         "allowed_ships": ["Longship", "War_Longship", "Supply_Ship"],
-        "blocked_ships": ["War_Galley", "Dromond", "Myrish_Galley", "Myrish_War_Galley", "Galley"],
+        "blocked_ships": ["Galley", "War_Galley", "Dromond"] + ESSOSI_SHIPS,
         "cost_modifiers": [],
         "maintenance_modifiers": [],
         "fleet_rules": {
@@ -234,12 +276,13 @@ SEA_CULTURES = {
         },
         "combat_modifiers": [
             {
-                "condition": "all_fleets",
-                "health_bonus": 1
+                "health_bonus": 4,
+                "reason": "Bearmen ships gain +4 health."
             },
             {
                 "condition": "defending_north_coast",
-                "damage_bonus": 1
+                "damage_bonus": 1,
+                "reason": "Bearmen ships gain +1 damage when protecting the North coasts."
             }
         ],
         "special_rules": [
@@ -248,14 +291,14 @@ SEA_CULTURES = {
     },
 
     "Sapphire Islander": {
-        "allowed_ships": ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship"],
-        "blocked_ships": ["Myrish_Galley", "Myrish_War_Galley", "War_Longship"],
+        "allowed_ships": WESTEROSI_SHIPS,
+        "blocked_ships": ESSOSI_SHIPS + ["War_Longship"],
         "cost_modifiers": [],
         "maintenance_modifiers": [
             {
-                "ship_types": ["ALL"],
-                "multiplier": 1.10,
-                "reason": "Stormlands warship maintenance costs 10% more."
+                "ship_types": "ALL",
+                "multiplier": 0.8,
+                "reason": "Sapphire Islander naval upkeep is reduced by 20%."
             }
         ],
         "fleet_rules": {
@@ -265,9 +308,116 @@ SEA_CULTURES = {
         "combat_modifiers": [
             {
                 "condition": "defending_stormlands_coast",
-                "health_bonus": 1
+                "health_bonus": 4,
+                "reason": "Sapphire Islander ships gain +4 health when defending the Stormlands coast."
             }
         ],
+        "special_rules": []
+    },
+
+    "Krakenman": {
+        "allowed_ships": WESTEROSI_SHIPS + ["War_Longship"],
+        "blocked_ships": ESSOSI_SHIPS,
+        "cost_modifiers": [],
+        "maintenance_modifiers": [],
+        "fleet_rules": {
+            "base": 20,
+            "stat": "martial"
+        },
+        "special_rules": [
+            "Can build War Longships due to their Ironborn heritage."
+        ]
+    },
+
+    "Fair Islander": {
+        "allowed_ships": WESTEROSI_SHIPS,
+        "blocked_ships": ESSOSI_SHIPS + ["War_Longship"],
+        "cost_modifiers": [],
+        "maintenance_modifiers": [],
+        "fleet_rules": {
+            "base": 20,
+            "stat": "martial"
+        },
+        "combat_modifiers": [
+            {
+                "condition": "defending_fair_isle",
+                "health_bonus": 4,
+                "reason": "Fleets led by a Fair Islander Admiral gain +4 health when defending Fair Isle."
+            }
+        ],
+        "special_rules": []
+    },
+
+    "Iron Bane": WESTERLANDS_CULTURE,
+    "Westerlander": WESTERLANDS_CULTURE,
+    "Silverlander": WESTERLANDS_CULTURE,
+
+    "Esterman": {
+        "allowed_ships": WESTEROSI_SHIPS,
+        "blocked_ships": ESSOSI_SHIPS + ["War_Longship"],
+        "cost_modifiers": [],
+        "maintenance_modifiers": [
+            {
+                "ship_types": "ALL",
+                "multiplier": 0.8,
+                "condition": "stationed_on_tarth",
+                "reason": "Naval upkeep is reduced by 20% while fleets are stationed upon Tarth."
+            }
+        ],
+        "fleet_rules": {
+            "base": 20,
+            "stat": "martial"
+        },
+        "special_modifiers": [
+            {
+                "condition": "all_fleets",
+                "security_bonus": 3
+            }
+        ],
+        "special_rules": []
+    },
+
+    "Baymen": {
+        "allowed_ships": WESTEROSI_SHIPS,
+        "blocked_ships": ESSOSI_SHIPS + ["War_Longship"],
+        "cost_modifiers": [],
+        "maintenance_modifiers": [],
+        "fleet_rules": {
+            "base": 20,
+            "stat": "martial"
+        },
+        "combat_modifiers": [
+            {
+                "condition": "defending_blackwater_bay",
+                "health_bonus": 4,
+                "reason": "Fleets led by a Baymen Admiral gain +4 health when defending the Blackwater Bay."
+            }
+        ],
+        "special_rules": []
+    },
+
+    "Sisterman": {
+        "allowed_ships": WESTEROSI_SHIPS + ["War_Longship"],
+        "blocked_ships": ESSOSI_SHIPS,
+        "cost_modifiers": [
+            {
+                "ship_types": ["Galley", "War_Galley", "Dromond"],
+                "multiplier": 2.0,
+                "reason": "Ships bigger than War Longships cost double to produce."
+            }
+        ],
+        "maintenance_modifiers": [
+            {
+                "ship_types": "ALL",
+                "gold_ratio": 0.25,
+                "prestige_ratio": 0.75,
+                "reason": "Sistermen pay 25% of maintenance in gold and the rest in prestige."
+            }
+        ],
+        "fleet_rules": {
+            "base": 20,
+            "stat": "martial"
+        },
         "special_rules": []
     },
 
@@ -281,9 +431,9 @@ SEA_CULTURES = {
         "maintenance_modifiers": [
             {
                 "ship_types": "ALL",
-                "multiplier": 0.25,
-                "prestige_multiplier": 0.75,
-                "reason": "Pirates pay only 25 percent of ship maintenance in gold."
+                "gold_ratio": 0.25,
+                "prestige_ratio": 0.75,
+                "reason": "Pirates pay 25% of maintenance in gold and the rest in prestige."
             }
         ],
         "fleet_rules": {
@@ -292,12 +442,12 @@ SEA_CULTURES = {
         },
         "special_rules": [
             "Cannot build ships directly.",
-            "Must buy, capture, or receive sponsored ships."
+            "Must buy, capture, or negotiate sponsored ships from Essosi players."
         ]
     },
 
     "Magister": {
-        "allowed_ships": ["Longship", "Galley", "War_Galley", "Dromond", "Supply_Ship", "Myrish_Galley", "Myrish_War_Galley"],
+        "allowed_ships": WESTEROSI_SHIPS + ESSOSI_SHIPS,
         "blocked_ships": ["War_Longship"],
         "cost_modifiers": [],
         "maintenance_modifiers": [],
@@ -311,3 +461,4 @@ SEA_CULTURES = {
         ]
     }
 }
+
