@@ -10,7 +10,8 @@ HOUSE_ROLE_FILTER = [
     "House ",
     "Free City of ",
     "Kingdom of ",
-    "High "
+    "High ",
+    "The Night's Watch"
 ]
 
 SHIPS = {
